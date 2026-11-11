@@ -15,8 +15,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 version = datetime.now().strftime("%Y%m%d-%H%M")
 
-# href="style.css" / src="data/products.js" (с меткой ?v=… или без) — только наши локальные файлы
-pattern = re.compile(r'((?:href|src)=")((?!https?:)[^"?]+\.(?:css|js))(\?v=[^"]*)?(")')
+# href="style.css" / src="data/products.js" / src="images/puck.png" (с меткой ?v=… или без) —
+# только наши локальные файлы
+pattern = re.compile(r'((?:href|src)=")((?!https?:)[^"?]+\.(?:css|js|png|jpg|jpeg|webp|svg))(\?v=[^"]*)?(")')
 
 sys.stdout.reconfigure(encoding="utf-8")
 for page in sorted(ROOT.glob("*.html")):

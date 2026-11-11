@@ -1,5 +1,5 @@
 ﻿# Делает готовую круглую картинку шайбы images/puck.png из логотипа images/logo.png:
-# логотип вырезается кругом (углы прозрачные), сверху дорисовываются обод, блик и тень снизу.
+# логотип вырезается кругом (углы прозрачные), сверху дорисовываются обод и тень снизу (без блика).
 # Браузеру не нужно ничего обрезать — поэтому шайба круглая в любом браузере, включая iPhone.
 #
 # Запуск (из папки проекта):  powershell -ExecutionPolicy Bypass -File tools\make_puck.ps1
@@ -36,14 +36,7 @@ $shade = New-Object System.Drawing.Drawing2D.LinearGradientBrush $shadeRect,
   ([System.Drawing.Color]::FromArgb(0, 0, 0, 0)), ([System.Drawing.Color]::FromArgb(150, 0, 0, 0)), 90
 $g.FillRectangle($shade, $shadeRect)
 
-# 3. Мягкий блик слева сверху
-$hl = New-Object System.Drawing.Drawing2D.GraphicsPath
-$hr = $Size * 0.45
-$hl.AddEllipse(($Size * 0.38 - $hr), ($Size * 0.30 - $hr), ($hr * 2), ($hr * 2))
-$hlBrush = New-Object System.Drawing.Drawing2D.PathGradientBrush $hl
-$hlBrush.CenterColor = [System.Drawing.Color]::FromArgb(14, 255, 255, 255)
-$hlBrush.SurroundColors = @([System.Drawing.Color]::FromArgb(0, 255, 255, 255))
-$g.FillPath($hlBrush, $hl)
+# (Блика сверху нет — владелец попросил убрать: выглядел ненатурально и мешал надписи.)
 $g.ResetClip()
 
 # 4. Обод: широкое тёмное кольцо и тонкая светлая кромка внутри

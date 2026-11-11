@@ -84,7 +84,11 @@
 - Контакты на сайте условные (+7 (000) 000-00-00, @username) — настоящие не вписывать.
 - ПЕРЕД КАЖДЫМ PUSH: `py tools/bump_version.py` — обновляет метку `?v=…` у CSS/JS во всех
   HTML, иначе iPhone (Safari) и встроенный браузер Telegram показывают старые файлы из кэша.
-- Шайба на главной — готовая картинка `images/puck.png` (круг с прозрачными углами).
+- НЕ править файлы проекта через PowerShell `Get-Content`/`Set-Content` — Windows PowerShell 5.1
+  читает UTF-8 без BOM как ANSI и портит кириллицу. Для правок — редактор или `py`.
+  `.ps1`-скрипты с кириллицей сохранять в UTF-8 С BOM, иначе PowerShell 5.1 их не прочитает.
+- Шайба на главной — готовая картинка `images/puck.png` (круг с прозрачными углами, без блика —
+  владелец попросил убрать блик как ненатуральный).
   Пересоздать из логотипа: `powershell -ExecutionPolicy Bypass -File tools\make_puck.ps1`.
   Не обрезать логотип кодом (clip-path / overflow + border-radius / mix-blend-mode) —
   в Safari на iPhone при анимации вылезал квадрат.

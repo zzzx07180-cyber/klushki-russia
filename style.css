@@ -134,41 +134,54 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 /* ===== Шайба ===== */
 .puck-zone {
+  --puck-size: min(460px, 80vw);
   position: relative;
   justify-self: center;
-  width: min(460px, 80vw);
-  aspect-ratio: 1;
+  width: var(--puck-size);
+  height: var(--puck-size);     /* явная высота — для телефонов, где нет aspect-ratio */
 }
 
+/* Шайба = логотип (у него чёрный фон — это и есть резина), обрезанный по кругу.
+   clip-path обрезает надёжно на всех телефонах, в том числе во время анимации
+   (обычный overflow: hidden + border-radius в мобильном Safari при анимации «протекает»
+   и показывает квадрат картинки). */
 .puck {
   position: relative;
   z-index: 2;
+  display: block;
   width: 100%;
   height: 100%;
+  padding: 0;
   border-radius: 50%;
-  overflow: hidden;
-  display: grid;
-  place-items: center;
-  /* чёрная резина с бликом и рифлёным ободом */
-  background:
-    radial-gradient(circle at 38% 30%, rgba(255, 255, 255, .1), transparent 45%),
-    radial-gradient(circle, #15171b 0%, #0b0c0e 62%, #030304 100%);
+  clip-path: circle(50% at 50% 50%);
+  -webkit-clip-path: circle(50% at 50% 50%);
+  background: #000;
+  will-change: transform;
+}
+.puck:focus-visible { outline: 3px solid var(--ice); outline-offset: -6px; }
+
+.puck__logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.08);       /* логотип чуть крупнее, как раньше */
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Обод и блик рисуем поверх логотипа отдельным слоем */
+.puck::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 30%, rgba(255, 255, 255, .1), transparent 45%);
   box-shadow:
     inset 0 0 0 10px #050506,
     inset 0 0 0 12px rgba(255, 255, 255, .14),
     inset 0 -14px 30px rgba(0, 0, 0, .8);
-  will-change: transform;
-}
-.puck:focus-visible { outline: 3px solid var(--ice); outline-offset: 6px; }
-
-/* логотип на чёрном фоне — режим «screen» убирает чёрный, остаётся только синий лёд */
-.puck__logo {
-  width: 108%;
-  height: auto;
-  mix-blend-mode: screen;
-  filter: drop-shadow(0 0 12px rgba(30, 139, 255, .6));
   pointer-events: none;
-  user-select: none;
 }
 
 /* тень под шайбой на льду */
@@ -809,7 +822,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   .pp { grid-template-columns: 1fr; gap: 24px; }
   .gallery { position: static; }
   .hero__inner { grid-template-columns: 1fr; }
-  .puck-zone { width: min(320px, 72vw); order: -1; }
+  .puck-zone { --puck-size: min(320px, 72vw); order: -1; }
 }
 
 /* ===== Шапка на узких экранах: меню прячется под «бургер» ===== */

@@ -141,10 +141,10 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   height: var(--puck-size);     /* явная высота — для телефонов, где нет aspect-ratio */
 }
 
-/* Шайба = логотип (у него чёрный фон — это и есть резина), обрезанный по кругу.
-   clip-path обрезает надёжно на всех телефонах, в том числе во время анимации
-   (обычный overflow: hidden + border-radius в мобильном Safari при анимации «протекает»
-   и показывает квадрат картинки). */
+/* Шайба — это ГОТОВАЯ круглая картинка images/puck.png (углы прозрачные, обод и блик
+   уже нарисованы; делается из логотипа скриптом tools/make_puck.ps1).
+   Браузеру ничего не нужно обрезать, поэтому она круглая везде, включая iPhone
+   и встроенный браузер Telegram (обрезка кодом там при анимации показывала квадрат). */
 .puck {
   position: relative;
   z-index: 2;
@@ -152,36 +152,23 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   width: 100%;
   height: 100%;
   padding: 0;
+  border: 0;
   border-radius: 50%;
-  clip-path: circle(50% at 50% 50%);
-  -webkit-clip-path: circle(50% at 50% 50%);
-  background: #000;
-  will-change: transform;
+  background: none;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
 }
-.puck:focus-visible { outline: 3px solid var(--ice); outline-offset: -6px; }
+.puck:focus-visible { outline: 3px solid var(--ice); outline-offset: 4px; }
 
 .puck__logo {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  transform: scale(1.08);       /* логотип чуть крупнее, как раньше */
   pointer-events: none;
   user-select: none;
-}
-
-/* Обод и блик рисуем поверх логотипа отдельным слоем */
-.puck::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: radial-gradient(circle at 38% 30%, rgba(255, 255, 255, .1), transparent 45%);
-  box-shadow:
-    inset 0 0 0 10px #050506,
-    inset 0 0 0 12px rgba(255, 255, 255, .14),
-    inset 0 -14px 30px rgba(0, 0, 0, .8);
-  pointer-events: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* тень под шайбой на льду */

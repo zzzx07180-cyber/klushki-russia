@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+  <!-- Заглушка «пример фото»: клюшка целиком -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M500 40 L250 470 Q228 508 185 510 L60 512" stroke="#1b2533" stroke-width="22"/>
+    <path d="M500 40 L452 122" stroke="#f4f6f8" stroke-width="16"/>
+    <path d="M466 98 l14 8 M476 81 l14 8 M486 64 l14 8" stroke="#1b2533" stroke-width="3"/>
+    <path d="M330 333 L282 415" stroke="#1e8bff" stroke-width="8"/>
+    <path d="M185 510 L90 511" stroke="#f4f6f8" stroke-width="12"/>
+  </g>
+  <text x="300" y="575" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#5d6b7c" letter-spacing="3">ОБЩИЙ ВИД · ПРИМЕР ФОТО</text>
+</svg>

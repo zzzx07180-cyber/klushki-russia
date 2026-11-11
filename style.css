@@ -1,0 +1,871 @@
+/* ===== Цвета и шрифты =====
+   Всё собрано здесь: поменяй значение — изменится по всему сайту. */
+:root {
+  --black: #07090d;            /* шапка, подвал, шайба */
+  --panel: rgba(9, 18, 32, .78);   /* полупрозрачные панели поверх льда */
+  --line: rgba(255, 255, 255, .13);
+  --white: #f4f8fc;
+  --dim: #b0bfd0;              /* приглушённый текст */
+  --accent: #1e8bff;           /* главный акцент — синий, как в логотипе */
+  --accent-dark: #0d68d0;
+  --accent-glow: rgba(30, 139, 255, .45);
+  --ice: #7fd4ff;              /* светло-ледяной — для подсветок */
+
+  /* Шрифты (все — SIL Open Font License, бесплатно и для коммерции) */
+  --f-display: "Roboto Condensed", "Arial Narrow", sans-serif;  /* крупные заголовки */
+  --f-ui: "Oswald", "Arial Narrow", sans-serif;                 /* кнопки, меню, подписи */
+  --f-text: "Golos Text", system-ui, sans-serif;                /* обычный текст */
+
+  /* «срезанный уголок» у кнопок */
+  --cut: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--f-text);
+  color: var(--white);
+  line-height: 1.55;
+  background: #1a2f4b;         /* пока рисуется лёд */
+  overflow-x: hidden;
+}
+
+/* Холст с текстурой льда — лежит под всем сайтом и не прокручивается */
+.ice-bg {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100lvh;
+  z-index: -1;
+  display: block;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+.container { max-width: 1240px; margin: 0 auto; padding: 0 16px; }
+
+/* Общий стиль крупных заголовков */
+.hero__title, .section__title, .logo, .delivery__card h3, .step__num {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+/* ===== Кнопки ===== */
+.btn {
+  display: inline-block;
+  padding: 16px 34px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--f-ui);
+  font-weight: 600;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  text-align: center;
+  clip-path: var(--cut);
+  transition: background .15s, transform .15s;
+}
+.btn:hover { background: var(--accent-dark); transform: translateY(-2px); }
+.btn--dark { background: var(--black); }
+.btn--dark:hover { background: #1a1f28; }
+
+/* ===== Шапка ===== */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--black);
+  border-bottom: 2px solid var(--accent);
+  box-shadow: 0 2px 18px var(--accent-glow);
+}
+.header__inner {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  height: 68px;
+  padding: 0 20px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.nav { display: flex; gap: 26px; }
+.nav a, .header__phone {
+  font-family: var(--f-ui);
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  transition: color .15s;
+}
+.nav a:hover, .header__phone:hover { color: var(--ice); }
+.header__phone { justify-self: end; }
+
+.logo { font-size: 32px; line-height: 1; white-space: nowrap; letter-spacing: .5px; }
+.logo__tag {
+  display: inline-block;
+  padding: 2px 9px 2px 7px;
+  background: var(--accent);
+  color: #fff;
+  transform: skewX(-12deg);
+}
+
+.burger { display: none; }
+
+/* ===== Первый экран ===== */
+.hero { padding: 80px 0 90px; overflow-x: clip; }   /* ничего не вылезает вбок; сверху шайба влетает свободно */
+.hero__inner {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  align-items: center;
+  gap: 40px;
+}
+.hero__title {
+  font-size: clamp(54px, 8.5vw, 116px);
+  line-height: .92;
+  text-shadow: 0 6px 30px rgba(0, 0, 0, .5);
+  margin-bottom: 22px;
+}
+.hero__text { color: var(--dim); font-size: 17px; max-width: 480px; margin-bottom: 30px; }
+
+/* ===== Шайба ===== */
+.puck-zone {
+  position: relative;
+  justify-self: center;
+  width: min(460px, 80vw);
+  aspect-ratio: 1;
+}
+
+.puck {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  /* чёрная резина с бликом и рифлёным ободом */
+  background:
+    radial-gradient(circle at 38% 30%, rgba(255, 255, 255, .1), transparent 45%),
+    radial-gradient(circle, #15171b 0%, #0b0c0e 62%, #030304 100%);
+  box-shadow:
+    inset 0 0 0 10px #050506,
+    inset 0 0 0 12px rgba(255, 255, 255, .14),
+    inset 0 -14px 30px rgba(0, 0, 0, .8);
+  will-change: transform;
+}
+.puck:focus-visible { outline: 3px solid var(--ice); outline-offset: 6px; }
+
+/* логотип на чёрном фоне — режим «screen» убирает чёрный, остаётся только синий лёд */
+.puck__logo {
+  width: 108%;
+  height: auto;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 12px rgba(30, 139, 255, .6));
+  pointer-events: none;
+  user-select: none;
+}
+
+/* тень под шайбой на льду */
+.puck-shadow {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: -6%;
+  height: 14%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, .65), transparent 70%);
+  z-index: 1;
+}
+
+/* --- Анимация «шайба влетает сверху» (по образцу из видео) ---
+   Шайба стартует на 3,4 своих высоты выше места, повёрнутая на -250°.
+   Падает и выравнивается с плавным «затуханием»: бо́льшую часть пути и поворота
+   делает ещё за краем экрана, а на виду — мягко доезжает и доворачивается на ~50°.
+   Кривая --puck-ease снята по кадрам с видео-образца.
+   Можно менять: 1.5s — длительность, -340% — откуда падает, -250deg — поворот. */
+.puck-zone {
+  --puck-ease: linear(0, .215 5%, .384 10%, .517 15%, .622 20%, .705 25%, .769 30%,
+                      .82 35%, .861 40%, .892 45%, .917 50%, .952 60%, .973 70%,
+                      .987 80%, .995 90%, 1);
+}
+/* для старых браузеров — похожая, но более простая кривая */
+.puck-zone.is-flying .puck        { animation: puck-fly 1.5s cubic-bezier(.2, .9, .3, 1) both; }
+.puck-zone.is-flying .puck-shadow { animation: shadow-grow 1.5s cubic-bezier(.2, .9, .3, 1) both; }
+
+@supports (animation-timing-function: linear(0, 1)) {
+  .puck-zone.is-flying .puck,
+  .puck-zone.is-flying .puck-shadow { animation-timing-function: var(--puck-ease); }
+}
+
+@keyframes puck-fly {
+  from { transform: translateY(-340%) rotate(-250deg); }
+  to   { transform: translateY(0) rotate(0); }
+}
+@keyframes shadow-grow {
+  from { opacity: 0; transform: scale(.4); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Если человек отключил анимации в системе — не дёргаем шайбу */
+@media (prefers-reduced-motion: reduce) {
+  .puck-zone.is-flying .puck,
+  .puck-zone.is-flying .puck-shadow { animation: none; }
+}
+
+/* ===== Секции ===== */
+.section { padding: 80px 0; }
+.section + .section { padding-top: 20px; }
+.section__title {
+  font-size: clamp(40px, 6vw, 64px);
+  line-height: 1;
+  margin-bottom: 28px;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, .45);
+}
+
+/* ===== Панель выбора раздела ===== */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 20px 22px 24px;
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+  backdrop-filter: blur(4px);
+  margin-bottom: 28px;
+}
+.panel__label {
+  font-family: var(--f-ui);
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--dim);
+  margin-bottom: 10px;
+}
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tab {
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, .07);
+  font-family: var(--f-ui);
+  font-weight: 600;
+  font-size: 19px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--dim);
+  transform: skewX(-12deg);
+  transition: background .15s, color .15s;
+}
+.tab:hover { color: var(--white); background: rgba(255, 255, 255, .13); }
+.tab.is-active { background: var(--accent); color: #fff; box-shadow: 0 0 18px var(--accent-glow); }
+
+.panel__sub { margin-top: 20px; padding-left: 14px; border-left: 3px solid var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  padding: 9px 16px;
+  border: 1px solid var(--line);
+  font-family: var(--f-ui);
+  font-weight: 500;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: border-color .15s, background .15s, color .15s;
+}
+.chip:hover { border-color: var(--white); }
+.chip.is-active { background: var(--white); color: var(--black); border-color: var(--white); }
+
+/* ===== Как заказать ===== */
+.steps { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.step { padding: 26px 24px; background: var(--panel); border-top: 3px solid var(--accent); }
+.step__num {
+  display: block;
+  font-size: 56px;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--accent);
+  margin-bottom: 8px;
+}
+.step b {
+  display: block;
+  font-family: var(--f-ui);
+  font-weight: 600;
+  font-size: 20px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.step span:last-child { color: var(--dim); }
+
+/* ===== Доставка ===== */
+.delivery { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.delivery__card { padding: 26px 24px; background: var(--panel); border-left: 3px solid var(--ice); }
+.delivery__card h3 { font-weight: 800; font-size: 32px; margin-bottom: 6px; }
+.delivery__card p { color: var(--dim); }
+.delivery__note { margin-top: 16px; color: var(--dim); font-size: 14px; }
+
+/* ===== Контакты ===== */
+.contacts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 36px 32px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--accent);
+}
+.contacts .section__title { margin-bottom: 8px; }
+.contacts__text { color: var(--dim); }
+.contacts__buttons { display: flex; flex-wrap: wrap; gap: 12px; }
+
+/* ===== Подвал ===== */
+.footer {
+  margin-top: 40px;
+  padding: 26px 0 90px;
+  background: var(--black);
+  border-top: 2px solid var(--accent);
+  color: var(--dim);
+  font-family: var(--f-ui);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+.footer__inner { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+
+/* ===== Плавающая кнопка связи ===== */
+.float-chat {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.float-chat__label {
+  padding: 10px 16px;
+  background: var(--black);
+  font-family: var(--f-ui);
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transform: skewX(-12deg);
+}
+.float-chat__btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 8px 24px var(--accent-glow);
+  transition: transform .15s;
+}
+.float-chat:hover .float-chat__btn { transform: scale(1.08); }
+
+/* =====================================================================
+   СТРАНИЦА КАТАЛОГА (catalog.html)
+   ===================================================================== */
+[hidden] { display: none !important; }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+.catalog-page { padding-top: 40px; }
+.crumbs {
+  font-family: var(--f-ui);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--dim);
+  margin-bottom: 10px;
+}
+.crumbs a:hover { color: var(--ice); }
+
+/* ----- Фильтры ----- */
+.filters__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 18px 32px;
+  margin-top: 20px;
+}
+.filters__right {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+/* круглые «таблетки» для брендов и хвата */
+.chips--round .chip { border-radius: 999px; padding: 8px 16px; }
+.chips--round .chip.is-active { background: var(--ice); border-color: var(--ice); color: var(--black); }
+
+/* переключатель «Только в наличии» */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 20px;
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid var(--line);
+  font-family: var(--f-ui);
+  font-weight: 600;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  user-select: none;
+}
+.toggle input { position: absolute; opacity: 0; pointer-events: none; }
+.toggle__box {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--dim);
+  background: var(--black);
+  display: grid;
+  place-items: center;
+  transition: background .15s, border-color .15s;
+}
+.toggle input:checked + .toggle__box {
+  background: var(--accent);
+  border-color: rgba(0, 0, 0, .45);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .25);
+}
+/* вместо галочки — чёрная клюшка с шайбой (силуэт снят по пикселям с образца):
+   тонкая ручка по диагонали, прямой крюк влево и плоская шайба справа от пятки */
+.toggle input:checked + .toggle__box::after {
+  content: "";
+  width: 100%;
+  height: 100%;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20.3 3 12.8 17.4Q12 19 10.4 19H3.6' fill='none' stroke='%2307090d' stroke-width='2' stroke-linecap='round'/%3E%3Cellipse cx='15.3' cy='20.7' rx='2.6' ry='1.3' fill='%2307090d'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+.toggle input:focus-visible + .toggle__box { outline: 2px solid var(--ice); outline-offset: 2px; }
+
+/* сортировка */
+.sort select {
+  appearance: none;
+  padding: 12px 40px 12px 16px;
+  background: var(--black) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237fd4ff' stroke-width='2' fill='none'/%3E%3C/svg%3E") no-repeat right 14px center;
+  border: 1px solid var(--line);
+  color: var(--white);
+  font-family: var(--f-ui);
+  font-weight: 500;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+.sort select:focus-visible { outline: 2px solid var(--ice); }
+
+.found {
+  margin: 4px 0 16px;
+  font-family: var(--f-ui);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--dim);
+}
+
+/* ----- Карточки товаров ----- */
+.products {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 18px;
+}
+.product {
+  position: relative;          /* нужно, чтобы ссылка растянулась на всю карточку */
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  transition: transform .2s, border-color .2s, box-shadow .2s;
+}
+.product:hover { transform: translateY(-5px); border-color: var(--accent); box-shadow: 0 10px 30px var(--accent-glow); }
+
+.product__pic {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(160deg, #f4f9ff 0%, #d6e6f5 100%);
+}
+.product__pic img { width: 100%; height: 100%; object-fit: contain; }
+.product__icon { font-size: 96px; transform: rotate(-12deg); }
+.product.is-out .product__pic { filter: grayscale(.8); opacity: .6; }
+
+.badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1;
+  padding: 5px 12px;
+  font-family: var(--f-ui);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #fff;
+  transform: skewX(-12deg);
+}
+.badge--original { background: var(--accent); }
+.badge--replica  { background: #4b5a6e; }
+.badge--restored { background: #0f8a6a; }
+
+.product__body { display: flex; flex-direction: column; flex: 1; padding: 16px 18px 18px; }
+.product__brand {
+  font-family: var(--f-ui);
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--ice);
+}
+.product__name {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-weight: 800;
+  font-size: 24px;
+  line-height: 1.1;
+  text-transform: uppercase;
+  margin: 2px 0 8px;
+}
+.product__specs { color: var(--dim); font-size: 14px; margin-bottom: 14px; }
+.product__bottom {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  margin-bottom: 14px;
+}
+.product__price {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-weight: 900;
+  font-size: 28px;
+  white-space: nowrap;
+}
+.stock {
+  font-family: var(--f-ui);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.stock--yes { color: #4ade80; }
+.stock--no  { color: var(--dim); }
+/* кнопка «Заказать» лежит поверх растянутой ссылки — нажатие на неё не открывает карточку */
+.product__btn { position: relative; z-index: 2; width: 100%; padding: 14px 20px; }
+
+/* ----- Пусто ----- */
+.empty {
+  padding: 40px 28px;
+  background: var(--panel);
+  border-left: 6px solid var(--accent);
+}
+.empty__title {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-weight: 900;
+  font-size: 32px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.empty p:not(.empty__title) { color: var(--dim); margin-bottom: 20px; }
+
+/* ----- Всплывающая подсказка ----- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 40;
+  max-width: min(520px, calc(100vw - 32px));
+  padding: 14px 20px;
+  background: var(--black);
+  border-left: 4px solid var(--accent);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+  font-size: 15px;
+  transform: translate(-50%, 140%);
+  opacity: 0;
+  transition: transform .3s, opacity .3s;
+  pointer-events: none;
+}
+.toast.is-visible { transform: translate(-50%, 0); opacity: 1; }
+
+/* карточка в каталоге: фото и название ведут на страницу товара */
+/* Вся карточка — ссылка на страницу товара: невидимый слой от ссылки в названии
+   растягивается на карточку целиком. Кнопка «Заказать» остаётся отдельной. */
+.product__name a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+.product:hover .product__name a { color: var(--ice); }
+.product__name a:focus-visible { outline: none; }
+.product:has(.product__name a:focus-visible) { outline: 3px solid var(--ice); outline-offset: 2px; }
+.product__count {
+  position: absolute;
+  right: 10px;
+  top: 12px;
+  padding: 3px 8px;
+  background: rgba(7, 9, 13, .75);
+  color: #fff;
+  font-family: var(--f-ui);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* =====================================================================
+   СТРАНИЦА ТОВАРА (product.html)
+   ===================================================================== */
+.pp {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 40px;
+  align-items: start;
+}
+
+/* ----- Галерея ----- */
+.gallery { position: sticky; top: 90px; }
+.gallery__main {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(160deg, #f4f9ff 0%, #d6e6f5 100%);
+  border: 1px solid var(--line);
+}
+.gallery__main .product__icon { font-size: 160px; }
+.gallery__zoom { width: 100%; height: 100%; cursor: zoom-in; touch-action: pan-y; }
+.gallery__zoom img { width: 100%; height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+.gallery__zoom:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
+
+.gallery__arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 48px;
+  height: 48px;
+  margin-top: -24px;
+  display: grid;
+  place-items: center;
+  background: rgba(7, 9, 13, .8);
+  color: #fff;
+  font-size: 32px;
+  line-height: 1;
+  transition: background .15s;
+}
+.gallery__arrow:hover { background: var(--accent); }
+.gallery__arrow--prev { left: 0; }
+.gallery__arrow--next { right: 0; }
+.gallery__count {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  padding: 4px 10px;
+  background: rgba(7, 9, 13, .8);
+  font-family: var(--f-ui);
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+.gallery__thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.gallery__thumb {
+  aspect-ratio: 1;
+  background: linear-gradient(160deg, #f4f9ff 0%, #d6e6f5 100%);
+  border: 2px solid transparent;
+  opacity: .6;
+  transition: opacity .15s, border-color .15s;
+}
+.gallery__thumb img { width: 100%; height: 100%; object-fit: contain; }
+.gallery__thumb:hover { opacity: 1; }
+.gallery__thumb.is-active { opacity: 1; border-color: var(--accent); }
+.gallery__nophoto { margin-top: 10px; color: var(--dim); font-size: 14px; }
+
+/* ----- Информация ----- */
+.pp__title {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-weight: 900;
+  font-size: clamp(36px, 5vw, 56px);
+  line-height: 1;
+  text-transform: uppercase;
+  margin: 4px 0 10px;
+}
+.pp__buy { display: flex; align-items: baseline; gap: 16px; margin: 18px 0 16px; }
+.pp__price {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-weight: 900;
+  font-size: 46px;
+  line-height: 1;
+}
+.pp__buttons { display: flex; flex-wrap: wrap; gap: 10px; }
+.pp__buttons .btn { flex: 1 1 200px; }
+.pp__hint { margin-top: 10px; color: var(--dim); font-size: 13px; }
+.pp__h {
+  font-family: var(--f-ui);
+  font-weight: 600;
+  font-size: 18px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin: 30px 0 10px;
+}
+.pp__text { color: var(--dim); }
+
+.pp__repair {
+  margin-top: 26px;
+  padding: 4px 20px 18px;
+  background: var(--panel);
+  border-left: 4px solid #0f8a6a;
+}
+.pp__repair .pp__h { margin-top: 16px; }
+.pp__repair p + p { margin-top: 6px; }
+
+.specs { width: 100%; border-collapse: collapse; background: var(--panel); }
+.specs th, .specs td { padding: 10px 14px; border-bottom: 1px solid var(--line); text-align: left; }
+.specs th {
+  width: 45%;
+  font-family: var(--f-ui);
+  font-weight: 500;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--dim);
+}
+
+.pp__back {
+  display: inline-block;
+  margin-top: 30px;
+  font-family: var(--f-ui);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--ice);
+}
+.pp__back:hover { text-decoration: underline; }
+
+/* ----- Фото на весь экран ----- */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgba(3, 6, 12, .94);
+}
+.lightbox__img {
+  max-width: min(92vw, 1000px);
+  max-height: 86vh;
+  background: linear-gradient(160deg, #f4f9ff 0%, #d6e6f5 100%);
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.lightbox .gallery__arrow--prev { left: 16px; }
+.lightbox .gallery__arrow--next { right: 16px; }
+.lightbox__close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 2;
+  width: 48px;
+  height: 48px;
+  font-size: 40px;
+  line-height: 1;
+  color: #fff;
+}
+.lightbox__close:hover { color: var(--ice); }
+.lightbox__count {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--f-ui);
+  letter-spacing: 1px;
+}
+
+/* ===== Планшеты ===== */
+@media (max-width: 1000px) {
+  .pp { grid-template-columns: 1fr; gap: 24px; }
+  .gallery { position: static; }
+  .hero__inner { grid-template-columns: 1fr; }
+  .puck-zone { width: min(320px, 72vw); order: -1; }
+}
+
+/* ===== Шапка на узких экранах: меню прячется под «бургер» ===== */
+@media (max-width: 1180px) {
+  .header__inner { grid-template-columns: 44px 1fr 44px; padding: 0 10px; }
+  .header__phone { display: none; }
+  .logo { justify-self: center; font-size: 28px; }
+
+  .burger {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 44px;
+    height: 44px;
+    padding: 0 10px;
+  }
+  .burger span { display: block; height: 2px; background: var(--white); }
+
+  .nav {
+    position: absolute;
+    top: 70px;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    gap: 0;
+    background: var(--black);
+    border-bottom: 2px solid var(--accent);
+    display: none;
+  }
+  .nav.is-open { display: flex; }
+  .nav a { padding: 16px 20px; border-top: 1px solid var(--line); }
+}
+
+/* ===== Телефоны ===== */
+@media (max-width: 820px) {
+  .hero { padding: 40px 0 60px; }
+  .section { padding: 56px 0; }
+  .steps, .delivery { grid-template-columns: 1fr; }
+  .tab { font-size: 16px; padding: 10px 16px; }
+  .contacts { padding: 26px 20px; }
+  .btn { width: 100%; }
+  .float-chat__label { display: none; }
+}
+
+@media (max-width: 480px) {
+  /* каталог на телефоне: по 2 товара в ряд, всё компактнее */
+  .products { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .product__body { padding: 12px; }
+  .product__name { font-size: 18px; }
+  .product__price { font-size: 21px; }
+  .product__bottom { flex-direction: column; gap: 2px; }
+  .product__icon { font-size: 64px; }
+  .product__btn { padding: 12px 8px; font-size: 13px; letter-spacing: .5px; }
+  .badge { top: 8px; left: 8px; font-size: 10px; padding: 4px 8px; }
+  .filters__right { margin-left: 0; width: 100%; }
+  .toggle, .sort { flex: 1 1 100%; }
+  .sort select { width: 100%; }
+}

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+  <!-- Заглушка «пример фото»: место ремонта крупным планом -->
+  <g stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M540 30 L250 470" stroke="#1b2533" stroke-width="50"/>
+    <path d="M250 470 Q215 520 150 522 L40 526" stroke="#1b2533" stroke-width="44"/>
+    <!-- полоса ремонта: слой карбона -->
+    <path d="M410 228 L350 319" stroke="#3a4656" stroke-width="64"/>
+    <path d="M400 218 l26 18 M384 243 l26 18 M368 268 l26 18 M352 293 l26 18" stroke="#56647a" stroke-width="4"/>
+    <circle cx="380" cy="273" r="92" stroke="#1e8bff" stroke-width="6" stroke-dasharray="16 12"/>
+  </g>
+  <text x="300" y="575" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#5d6b7c" letter-spacing="3">МЕСТО РЕМОНТА · ПРИМЕР ФОТО</text>
+</svg>

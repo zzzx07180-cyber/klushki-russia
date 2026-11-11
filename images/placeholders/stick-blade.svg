@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+  <!-- Заглушка «пример фото»: крюк крупным планом -->
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M560 40 L420 300" fill="none" stroke="#1b2533" stroke-width="46"/>
+    <path d="M420 300 Q390 360 320 368 L70 380 Q40 382 44 350 Q60 300 120 300 L380 290 Z" fill="#1b2533" stroke="#1b2533" stroke-width="20"/>
+    <path d="M330 350 L90 360" fill="none" stroke="#f4f6f8" stroke-width="26"/>
+    <path d="M300 337 v30 M260 339 v30 M220 341 v30 M180 343 v30 M140 345 v30" stroke="#c9d3de" stroke-width="3"/>
+    <path d="M500 150 L470 205" stroke="#1e8bff" stroke-width="10"/>
+  </g>
+  <text x="300" y="520" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#5d6b7c" letter-spacing="3">КРЮК · ПРИМЕР ФОТО</text>
+</svg>

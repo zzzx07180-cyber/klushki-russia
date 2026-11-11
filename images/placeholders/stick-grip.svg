@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+  <!-- Заглушка «пример фото»: рукоятка с обмоткой -->
+  <g stroke-linecap="round">
+    <path d="M470 60 L150 500" stroke="#1b2533" stroke-width="56"/>
+    <path d="M470 60 L360 211" stroke="#f4f6f8" stroke-width="50"/>
+    <path d="M444 72 l30 22 M426 97 l30 22 M408 122 l30 22 M390 147 l30 22 M372 172 l30 22" stroke="#c9d3de" stroke-width="4"/>
+    <path d="M300 293 L260 348" stroke="#1e8bff" stroke-width="20"/>
+    <circle cx="470" cy="60" r="30" fill="#f4f6f8"/>
+  </g>
+  <text x="300" y="575" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#5d6b7c" letter-spacing="3">РУКОЯТКА · ПРИМЕР ФОТО</text>
+</svg>

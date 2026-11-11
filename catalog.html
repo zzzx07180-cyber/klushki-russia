@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Каталог — КЛЮШКИ RUSSIA</title>
+  <meta name="description" content="Каталог хоккейной экипировки: клюшки (оригиналы, реплики, восстановленные), коньки, шлемы, налокотники. Доставка СДЭК и Почтой России.">
+  <!-- Шрифты: все три под свободной лицензией SIL Open Font License (OFL) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@1,800;1,900&family=Oswald:wght@500;600&family=Golos+Text:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="ice" class="ice-bg" aria-hidden="true"></canvas>
+
+  <!-- ШАПКА (такая же, как на главной) -->
+  <header class="header">
+    <div class="header__inner">
+      <button class="burger" id="burger" aria-label="Открыть меню" aria-expanded="false" aria-controls="nav">
+        <span></span><span></span><span></span>
+      </button>
+
+      <nav class="nav" id="nav">
+        <a href="catalog.html" aria-current="page">Каталог</a>
+        <a href="index.html#how">Как заказать</a>
+        <a href="index.html#delivery">Доставка</a>
+        <a href="index.html#contacts">Контакты</a>
+      </nav>
+
+      <a href="index.html" class="logo" aria-label="КЛЮШКИ RUSSIA — на главную">
+        КЛЮШКИ <span class="logo__tag">RUSSIA</span>
+      </a>
+
+      <a href="tel:+70000000000" class="header__phone">+7 (000) 000-00-00</a>
+    </div>
+  </header>
+
+  <main class="section catalog-page">
+    <div class="container">
+      <p class="crumbs"><a href="index.html">Главная</a> / Каталог</p>
+      <h1 class="section__title">Каталог</h1>
+
+      <!-- КАТАЛОГ: фильтры и товары рисует catalog.js (тот же блок стоит на главной).
+           data-sync-url — выбранные фильтры записываются в адрес страницы. -->
+      <div id="catalogApp" data-sync-url></div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <span>© 2026 КЛЮШКИ RUSSIA</span>
+      <span>Доставка СДЭК и Почтой России</span>
+    </div>
+  </footer>
+
+  <!-- Плавающая кнопка связи -->
+  <a href="https://t.me/" class="float-chat" target="_blank" rel="noopener">
+    <span class="float-chat__label">Подобрать клюшку</span>
+    <span class="float-chat__btn" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="26" height="26"><path fill="currentColor" d="M21.5 3.6 2.9 10.8c-1.3.5-1.3 1.2-.2 1.6l4.8 1.5 1.8 5.6c.2.6.4.8.8.8.4 0 .6-.2.9-.5l2.3-2.2 4.8 3.5c.9.5 1.5.2 1.7-.8l3.1-14.8c.3-1.3-.5-1.9-1.4-1.5ZM8.7 13.6l9.4-5.9c.5-.3.9-.1.5.2l-7.9 7.2-.3 3.3-1.7-4.8Z"/></svg>
+    </span>
+  </a>
+
+  <!-- Всплывающая подсказка после нажатия «Заказать» -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="ice.js"></script>
+  <script src="script.js"></script>
+  <script src="data/products.js"></script>
+  <script src="shop.js"></script>
+  <script src="catalog.js"></script>
+</body>
+</html>

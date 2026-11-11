@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Товар — КЛЮШКИ RUSSIA</title>
+  <meta name="description" content="Хоккейная экипировка КЛЮШКИ RUSSIA. Доставка СДЭК и Почтой России.">
+  <!-- Шрифты: все три под свободной лицензией SIL Open Font License (OFL) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@1,800;1,900&family=Oswald:wght@500;600&family=Golos+Text:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="ice" class="ice-bg" aria-hidden="true"></canvas>
+
+  <!-- ШАПКА (такая же, как на главной) -->
+  <header class="header">
+    <div class="header__inner">
+      <button class="burger" id="burger" aria-label="Открыть меню" aria-expanded="false" aria-controls="nav">
+        <span></span><span></span><span></span>
+      </button>
+
+      <nav class="nav" id="nav">
+        <a href="catalog.html">Каталог</a>
+        <a href="index.html#how">Как заказать</a>
+        <a href="index.html#delivery">Доставка</a>
+        <a href="index.html#contacts">Контакты</a>
+      </nav>
+
+      <a href="index.html" class="logo" aria-label="КЛЮШКИ RUSSIA — на главную">
+        КЛЮШКИ <span class="logo__tag">RUSSIA</span>
+      </a>
+
+      <a href="tel:+70000000000" class="header__phone">+7 (000) 000-00-00</a>
+    </div>
+  </header>
+
+  <main class="section catalog-page">
+    <div class="container">
+      <p class="crumbs" id="crumbs"><a href="index.html">Главная</a> / <a href="catalog.html">Каталог</a></p>
+
+      <!-- Страницу заполняет скрипт product.js по номеру товара из адреса: product.html?id=7 -->
+      <div class="pp" id="pp"></div>
+
+      <div class="empty" id="notFound" hidden>
+        <p class="empty__title">Товар не найден</p>
+        <p>Возможно, его уже продали. Посмотри другие товары в каталоге или напиши нам.</p>
+        <a href="catalog.html" class="btn">В каталог</a>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <span>© 2026 КЛЮШКИ RUSSIA</span>
+      <span>Доставка СДЭК и Почтой России</span>
+    </div>
+  </footer>
+
+  <!-- Просмотр фото на весь экран -->
+  <div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Просмотр фото">
+    <button class="lightbox__close" id="lbClose" type="button" aria-label="Закрыть">×</button>
+    <button class="gallery__arrow gallery__arrow--prev" id="lbPrev" type="button" aria-label="Предыдущее фото">‹</button>
+    <img class="lightbox__img" id="lbImg" alt="">
+    <button class="gallery__arrow gallery__arrow--next" id="lbNext" type="button" aria-label="Следующее фото">›</button>
+    <p class="lightbox__count" id="lbCount"></p>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="ice.js"></script>
+  <script src="script.js"></script>
+  <script src="data/products.js"></script>
+  <script src="shop.js"></script>
+  <script src="product.js"></script>
+</body>
+</html>

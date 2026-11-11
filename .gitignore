@@ -1,0 +1,8 @@
+# Личные настройки Claude Code — не нужны в истории проекта
+.claude/settings.local.json
+.claude/launch.json
+
+# Системный мусор Windows / macOS
+Thumbs.db
+Desktop.ini
+.DS_Store

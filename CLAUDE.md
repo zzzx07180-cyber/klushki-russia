@@ -77,6 +77,9 @@
 - Сайт: https://zzzx07180-cyber.github.io/klushki-russia/ (GitHub Pages, ветка `main`, корень).
 - Репозиторий ПУБЛИЧНЫЙ: github.com/zzzx07180-cyber/klushki-russia. Обновление сайта = `git push`
   в `main`, GitHub пересобирает его примерно за минуту.
+- ⚠️ НЕ пушить после каждой правки. Изменения показываем на локальном предпросмотре
+  (http://localhost:8080, конфигурация «site» в .claude/launch.json). На GitHub отправляем
+  ТОЛЬКО когда владелец сам скажет.
 - GitHub CLI: `C:\Program Files\GitHub CLI\gh.exe` (вход выполнен).
 - Email автора коммитов — скрытый адрес GitHub (noreply), настроен в этом репозитории.
 - Ветка `local-history-private` — старая история с настоящими контактами. ТОЛЬКО локально,

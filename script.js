@@ -16,18 +16,25 @@ nav.querySelectorAll('a').forEach((link) => {
   });
 });
 
-// ===== Шайба влетает сверху (только на главной) =====
+// ===== Шайба въезжает по льду (только на главной) =====
 // При открытии сайта и при каждом нажатии на шайбу запускаем анимацию заново.
 const puckZone = document.querySelector('.puck-zone');
 const puck = document.getElementById('puck');
 
 function launchPuck() {
-  puckZone.classList.remove('is-flying');
+  puckZone.classList.remove('is-waiting', 'is-flying');
   void puckZone.offsetWidth;            // «перезагружаем» анимацию, чтобы она сыграла ещё раз
   puckZone.classList.add('is-flying');
 }
 
 if (puckZone && puck) {
-  launchPuck();
+  // Шайба сложена из двух картинок. Ждём, пока обе загрузятся (но не дольше 2 секунд),
+  // и только потом запускаем — иначе на медленном интернете шайба «въедет» невидимой.
+  puckZone.classList.add('is-waiting');
+  const images = Array.from(puck.querySelectorAll('img'));
+  const loaded = images.map((img) => (img.decode ? img.decode().catch(() => {}) : Promise.resolve()));
+  const tooLong = new Promise((resolve) => setTimeout(resolve, 2000));
+  Promise.race([Promise.all(loaded), tooLong]).then(launchPuck);
+
   puck.addEventListener('click', launchPuck);
 }

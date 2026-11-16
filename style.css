@@ -117,7 +117,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .burger { display: none; }
 
 /* ===== Первый экран ===== */
-.hero { padding: 80px 0 90px; overflow-x: clip; }   /* ничего не вылезает вбок; сверху шайба влетает свободно */
+.hero { padding: 80px 0 90px; overflow-x: clip; }   /* ничего не вылезает вбок: шайба въезжает из-за правого края */
 .hero__inner {
   display: grid;
   grid-template-columns: 1.15fr 1fr;
@@ -135,17 +135,31 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 /* ===== Шайба ===== */
 .puck-zone {
   --puck-size: min(460px, 80vw);
+  /* Где на картинке корпуса лежит верхняя грань шайбы.
+     Эти четыре числа печатает tools/make_puck.py — менять только вместе с картинками. */
+  --face-left: 2.77%;
+  --face-top: -3.12%;
+  --face-size: 94.45%;
+  --face-squash: 0.9272;
   position: relative;
   justify-self: center;
   width: var(--puck-size);
   height: var(--puck-size);     /* явная высота — для телефонов, где нет aspect-ratio */
 }
 
-/* Шайба — это ГОТОВАЯ картинка images/puck.webp с прозрачным фоном: настоящий 3D-рендер
-   (резина, рифлёный бортик, царапины, свет — всё уже «сфотографировано» в Blender
-   скриптом tools/make_puck.py).
-   Браузеру ничего не нужно обрезать, поэтому она выглядит одинаково везде, включая iPhone
+/* Шайба — это настоящий 3D-рендер из Blender (скрипт tools/make_puck.py), сложенный из двух
+   ГОТОВЫХ картинок с прозрачным фоном:
+     images/puck-body.webp — корпус: резина, рифлёный бортик, свет;
+     images/puck-face.webp — логотип и царапины; лежит сверху и вращается, когда шайба едет.
+   Так шайба крутится вокруг своей оси по-настоящему: логотип поворачивается, а бортик
+   и свет остаются на месте.
+   Браузеру ничего не нужно обрезать, поэтому шайба выглядит одинаково везде, включая iPhone
    и встроенный браузер Telegram (обрезка кодом там при анимации показывала квадрат). */
+.puck-slide {                   /* эта «тележка» едет по льду: в ней шайба и её тень */
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
 .puck {
   position: relative;
   z-index: 2;
@@ -162,7 +176,14 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 .puck:focus-visible { outline: 3px solid var(--ice); outline-offset: 4px; }
 
-.puck__logo {
+.puck__layers {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.puck__body,
+.puck__marks {
   display: block;
   width: 100%;
   height: 100%;
@@ -171,52 +192,109 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
+/* Верхняя грань. Картинка с логотипом — ровный круг; шайба наклонена, поэтому сжимаем
+   круг в овал (--face-squash). Внутри овала картинка вращается (см. puck-spin ниже). */
+.puck__face {
+  position: absolute;
+  left: var(--face-left);
+  top: var(--face-top);
+  width: var(--face-size);
+  height: var(--face-size);
+  transform: scaleY(var(--face-squash));
+  pointer-events: none;
+}
 
-/* тень под шайбой на льду */
+/* Тень: шайба лежит на льду, поэтому тень плотная и прижата к самому низу бортика */
 .puck-shadow {
   position: absolute;
-  left: 8%;
-  right: 8%;
-  bottom: -6%;
-  height: 14%;
+  left: -3%;
+  right: -3%;
+  top: 15%;
+  bottom: -8%;
   border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(0, 0, 0, .65), transparent 70%);
+  background: radial-gradient(closest-side, rgba(0, 4, 12, .8) 80%, rgba(0, 4, 12, .4) 90%, transparent 100%);
   z-index: 1;
 }
 
-/* --- Анимация «шайба влетает сверху» (по образцу из видео) ---
-   Шайба стартует на 3,4 своих высоты выше места, повёрнутая на -250°.
-   Падает и выравнивается с плавным «затуханием»: бо́льшую часть пути и поворота
-   делает ещё за краем экрана, а на виду — мягко доезжает и доворачивается на ~50°.
-   Кривая --puck-ease снята по кадрам с видео-образца.
-   Можно менять: 1.5s — длительность, -340% — откуда падает, -250deg — поворот. */
+/* След на льду за шайбой: мягкая светлая полоса, ярче всего у самой шайбы.
+   Полоса лежит вдоль пути шайбы (тот же угол, что у --slide-x / --slide-y). */
+.puck-trail {
+  position: absolute;
+  left: 50%;
+  top: 57%;
+  width: 337%;                  /* длина пути: √(330² + 70²) */
+  height: 0;
+  transform: rotate(-12deg);    /* угол пути: шайба едет справа и чуть «издалека» */
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+.puck-trail i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 0;
+  padding-bottom: 20%;          /* ширина полосы (в долях её длины) */
+  margin-top: -10%;             /* половина ширины — чтобы полоса легла ровно по линии пути */
+  background:
+    linear-gradient(90deg, rgba(225, 242, 255, .45), rgba(225, 242, 255, 0) 55%) 0 50% / 100% 2px no-repeat,
+    radial-gradient(ellipse 60% 50% at 0 50%, rgba(200, 230, 255, .28), rgba(200, 230, 255, .1) 50%, transparent 100%);
+  transform-origin: 100% 50%;
+  transform: scaleX(0);
+  opacity: 0;
+}
+
+/* --- Анимация «шайба въезжает по льду» ---
+   Шайба выезжает из-за правого края, скользит по прямой и тормозит, как от трения о лёд
+   (равномерное замедление — кривая --ice-friction). При этом она крутится вокруг своей оси
+   и докручивается ещё чуть-чуть после остановки — как настоящая. За ней на льду остаётся
+   след, который потом тает.
+   Можно менять:
+     --slide-x / --slide-y — откуда выезжает (в размерах шайбы); если менять, то поправить
+                             и угол с длиной у .puck-trail;
+     --slide-time          — сколько секунд едет;
+     --spin-time           — сколько секунд крутится;
+     --spin                — на сколько градусов успевает повернуться (540 = полтора оборота). */
 .puck-zone {
-  --puck-ease: linear(0, .215 5%, .384 10%, .517 15%, .622 20%, .705 25%, .769 30%,
-                      .82 35%, .861 40%, .892 45%, .917 50%, .952 60%, .973 70%,
-                      .987 80%, .995 90%, 1);
+  --slide-x: 330%;
+  --slide-y: -70%;
+  --slide-time: 1.7s;
+  --spin-time: 2.5s;
+  --spin: -540deg;
+  --ice-friction: cubic-bezier(.333, .667, .667, 1);
 }
-/* для старых браузеров — похожая, но более простая кривая */
-.puck-zone.is-flying .puck        { animation: puck-fly 1.5s cubic-bezier(.2, .9, .3, 1) both; }
-.puck-zone.is-flying .puck-shadow { animation: shadow-grow 1.5s cubic-bezier(.2, .9, .3, 1) both; }
+.puck-zone.is-waiting .puck-slide { opacity: 0; }   /* пока картинки грузятся, шайбу не показываем */
 
-@supports (animation-timing-function: linear(0, 1)) {
-  .puck-zone.is-flying .puck,
-  .puck-zone.is-flying .puck-shadow { animation-timing-function: var(--puck-ease); }
-}
-
-@keyframes puck-fly {
-  from { transform: translateY(-340%) rotate(-250deg); }
-  to   { transform: translateY(0) rotate(0); }
-}
-@keyframes shadow-grow {
-  from { opacity: 0; transform: scale(.4); }
-  to   { opacity: 1; transform: scale(1); }
+.puck-zone.is-flying .puck-slide  { animation: puck-slide var(--slide-time) var(--ice-friction) both; }
+.puck-zone.is-flying .puck__marks { animation: puck-spin var(--spin-time) var(--ice-friction) both; }
+/* след: растёт ровно вместе с шайбой, а когда она остановилась — тает */
+.puck-zone.is-flying .puck-trail i {
+  animation: puck-trail-grow var(--slide-time) var(--ice-friction) both,
+             puck-trail-melt 2.6s ease-in var(--slide-time) both;
 }
 
-/* Если человек отключил анимации в системе — не дёргаем шайбу */
+@keyframes puck-slide {
+  from { transform: translate(var(--slide-x), var(--slide-y)) scale(.9); }   /* издалека — чуть меньше */
+  to   { transform: translate(0, 0) scale(1); }
+}
+@keyframes puck-spin {
+  from { transform: rotate(var(--spin)); }
+  to   { transform: rotate(0); }
+}
+@keyframes puck-trail-grow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes puck-trail-melt {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* Если человек отключил анимации в системе — шайба просто лежит на месте */
 @media (prefers-reduced-motion: reduce) {
-  .puck-zone.is-flying .puck,
-  .puck-zone.is-flying .puck-shadow { animation: none; }
+  .puck-zone.is-flying .puck-slide,
+  .puck-zone.is-flying .puck__marks,
+  .puck-zone.is-flying .puck-trail i { animation: none; }
 }
 
 /* ===== Секции ===== */

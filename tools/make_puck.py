@@ -1,17 +1,27 @@
 # -*- coding: utf-8 -*-
 """
-Делает картинку шайбы images/puck.webp — настоящий 3D-рендер в Blender.
+Делает картинки шайбы для главной страницы — настоящий 3D-рендер в Blender.
 
-Что получается: чёрная резиновая шайба с логотипом (images/logo.png) на верхней грани,
-скруглённой кромкой, рифлёным («в ромбик») бортиком, мелкими царапинами и потёртостями.
-Фон прозрачный — на сайте это обычная картинка, браузеру ничего не нужно обрезать.
-Формат WebP: выглядит как PNG, но весит в несколько раз меньше (важно для телефонов).
+Чёрная резиновая шайба со скруглённой кромкой, рифлёным («в ромбик») бортиком,
+логотипом (images/logo.png), мелкими царапинами и потёртостями. Получаются ДВЕ картинки:
 
-Запуск (из папки проекта), Blender откроется с окном и сам сохранит картинку:
+  images/puck-body.webp — корпус шайбы под наклоном (резина, бортик, свет), без логотипа;
+  images/puck-face.webp — только логотип и царапины («развёрнуто» в ровный круг), остальное прозрачно.
+
+Зачем две: на сайте вторая картинка лежит поверх первой и ВРАЩАЕТСЯ, когда шайба скользит
+по льду. Так шайба крутится вокруг своей оси по-настоящему: логотип поворачивается,
+а бортик и свет остаются на месте.
+
+Фон прозрачный, браузеру ничего не нужно обрезать. Формат WebP: выглядит как PNG,
+но весит в несколько раз меньше (важно для телефонов).
+
+Запуск (из папки проекта), Blender откроется с окном и сам сохранит обе картинки:
 
   "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Blender\\blender.exe" --python tools\\make_puck.py
 
 Что можно менять — в блоке «НАСТРОЙКИ» ниже (наклон, размер, сила царапин и т.п.).
+⚠️ Если поменять TILT (наклон) — скрипт в конце напечатает четыре числа «--face-…»,
+их нужно вписать в style.css (блок .puck-zone), иначе логотип ляжет на шайбу криво.
 """
 import math
 import os
@@ -29,13 +39,13 @@ ROOT = os.path.dirname(_HERE)
 
 # ───────────────────────────── НАСТРОЙКИ ─────────────────────────────
 LOGO_PATH = os.path.join(ROOT, 'images', 'logo.png')
-OUT_PATH = os.path.join(ROOT, 'images', 'puck.webp')
+OUT_BODY = os.path.join(ROOT, 'images', 'puck-body.webp')   # корпус (неподвижная картинка)
+OUT_FACE = os.path.join(ROOT, 'images', 'puck-face.webp')   # логотип и царапины (вращается)
 
 SIZE = 960            # размер картинки в пикселях (квадрат)
 SAMPLES = 500         # качество рендера (больше — чище, но дольше)
 WEBP_QUALITY = 90     # качество сжатия картинки: 100 — без потерь (тяжёлая), 90 — на глаз не отличить
-TILT = 30             # наклон камеры в градусах: 0 — строго сверху, 30 — виден бортик
-LENS = 190            # «объектив» камеры, мм (больше — меньше искажений перспективы)
+TILT = 22             # наклон в градусах: 0 — шайба смотрит прямо на зрителя, больше — виден бортик
 MARGIN = 0.012        # поля вокруг шайбы (доля от размера картинки)
 
 LOGO_SCALE = 1.08     # логотип чуть крупнее диаметра шайбы (как было на сайте)
@@ -281,7 +291,11 @@ def build_material(logo, scratches):
 
     out = n.new('ShaderNodeOutputMaterial')
     bsdf = n.new('ShaderNodeBsdfPrincipled')
-    tree.links.new(bsdf.outputs[0], out.inputs['Surface'])
+    clear = n.new('ShaderNodeBsdfTransparent')
+    surface = n.new('ShaderNodeMixShader')                     # прозрачно ↔ резина (см. «покрытие» ниже)
+    tree.links.new(clear.outputs[0], surface.inputs[1])
+    tree.links.new(bsdf.outputs[0], surface.inputs[2])
+    tree.links.new(surface.outputs[0], out.inputs['Surface'])
 
     pos = n.new('ShaderNodeTexCoord').outputs['Object']
     sep = n.new('ShaderNodeSeparateXYZ')
@@ -293,6 +307,13 @@ def build_material(logo, scratches):
 
     top = H / 2
     on_top = n.m('GREATER_THAN', z, top - 0.002)             # 1 только на верхней плоской грани
+
+    # Два «выключателя» (их переключает set_mode перед каждым рендером):
+    #   PUCK_MARKS — рисовать ли логотип и царапины; PUCK_SOLID — видна ли сама резина.
+    sw_marks = n.new('ShaderNodeValue', name='PUCK_MARKS')
+    sw_solid = n.new('ShaderNodeValue', name='PUCK_SOLID')
+    sw_marks.outputs[0].default_value = sw_solid.outputs[0].default_value = 1.0
+    on_top = n.m('MULTIPLY', on_top, sw_marks.outputs[0])
 
     # --- зоны ---
     # кромка (скругление и чуть вокруг него) — там резина стирается сильнее всего
@@ -374,6 +395,10 @@ def build_material(logo, scratches):
     nrm = n.bump(relief_small, 0.55, 0.004, nrm)
     n.put(bsdf.inputs['Normal'], nrm)
 
+    # --- покрытие: для картинки «только логотип и царапины» резина становится прозрачной ---
+    cover = n.m('MAXIMUM', n.smooth(ink, 0.0, 0.2), n.smooth(scratch, 0.0, 0.12))
+    n.put(surface.inputs[0], n.m('MAXIMUM', sw_solid.outputs[0], cover))
+
     for attr_owner in (mat, getattr(mat, 'cycles', None)):
         try:
             attr_owner.displacement_method = 'BOTH'            # настоящий рельеф + мелкие детали
@@ -426,8 +451,10 @@ def build_world(scene):
 
 
 def build_camera(scene):
+    """Главная камера: смотрит на шайбу под наклоном TILT, без перспективных искажений."""
     cam_data = bpy.data.cameras.new('PuckCamera')
-    cam_data.lens = LENS
+    cam_data.type = 'ORTHO'
+    cam_data.ortho_scale = 2.4
     cam = bpy.data.objects.new('PuckCamera', cam_data)
     scene.collection.objects.link(cam)
     scene.camera = cam
@@ -436,7 +463,7 @@ def build_camera(scene):
     cam.rotation_euler = (-direction).to_track_quat('-Z', 'Y').to_euler()
     cam.location = direction * 8.0
 
-    # подгоняем расстояние и сдвиг кадра так, чтобы шайба занимала весь квадрат
+    # подгоняем масштаб и сдвиг кадра так, чтобы шайба занимала весь квадрат
     top, flat, side = H / 2, R - BEVEL, H / 2 - BEVEL
     pts = [Vector((r * math.cos(t), r * math.sin(t), zz))
            for r, zz in ((flat, top), (R, side), (R, -side), (flat, -top))
@@ -447,9 +474,40 @@ def build_camera(scene):
         xs, ys = [p.x for p in pr], [p.y for p in pr]
         cam_data.shift_x += (max(xs) + min(xs)) / 2 - 0.5
         cam_data.shift_y += (max(ys) + min(ys)) / 2 - 0.5
-        scale = max(max(xs) - min(xs), max(ys) - min(ys)) / (1 - 2 * MARGIN)
-        cam.location = cam.location * scale
+        cam_data.ortho_scale *= max(max(xs) - min(xs), max(ys) - min(ys)) / (1 - 2 * MARGIN)
     return cam
+
+
+def build_face_camera(scene):
+    """Вторая камера — для картинки с логотипом и царапинами.
+
+    Смотрит под тем же углом, что и главная (чтобы свет на царапинах лёг так же), но в кадре
+    ровно верхняя грань. Под наклоном круг выглядит овалом; при рендере мы «растягиваем»
+    пиксели (см. render_one), и в файле получается ровный круг. На сайте его снова
+    сжимают в овал (--face-squash) — и он точно ложится на корпус.
+    """
+    cam_data = bpy.data.cameras.new('PuckFaceCamera')
+    cam_data.type = 'ORTHO'
+    cam_data.ortho_scale = 2 * R
+    cam = bpy.data.objects.new('PuckFaceCamera', cam_data)
+    scene.collection.objects.link(cam)
+    a = math.radians(TILT)
+    direction = Vector((0.0, -math.sin(a), math.cos(a)))
+    cam.rotation_euler = (-direction).to_track_quat('-Z', 'Y').to_euler()
+    cam.location = Vector((0.0, 0.0, H / 2)) + direction * 8.0
+    return cam
+
+
+def face_geometry(scene):
+    """Где на картинке корпуса лежит верхняя грань — эти числа нужны в style.css."""
+    cam = bpy.data.objects['PuckCamera']
+    bpy.context.view_layer.update()
+    c = world_to_camera_view(scene, cam, Vector((0.0, 0.0, H / 2)))
+    half = R / cam.data.ortho_scale
+    return {'--face-left': f'{(c.x - half) * 100:.2f}%',
+            '--face-top': f'{(1 - c.y - half) * 100:.2f}%',
+            '--face-size': f'{2 * half * 100:.2f}%',
+            '--face-squash': f'{math.cos(math.radians(TILT)):.4f}'}
 
 
 def setup_render(scene):
@@ -461,7 +519,7 @@ def setup_render(scene):
     r.resolution_x = r.resolution_y = SIZE
     r.resolution_percentage = 100
     r.film_transparent = True
-    r.filepath = OUT_PATH
+    r.filepath = OUT_BODY
     r.image_settings.file_format = 'WEBP'
     r.image_settings.color_mode = 'RGBA'
     r.image_settings.color_depth = '8'
@@ -477,6 +535,7 @@ def setup_render(scene):
     cy.adaptive_threshold = 0.008
     cy.use_denoising = True
     cy.max_bounces = 6
+    cy.transparent_max_bounces = 128     # иначе на картинке с логотипом по краям остаются чёрные полоски
     try:   # видеокарта — только если она уже включена в настройках Blender
         prefs = bpy.context.preferences.addons['cycles'].preferences
         cy.device = 'GPU' if prefs.compute_device_type != 'NONE' else 'CPU'
@@ -516,17 +575,42 @@ def build_scene():
     setup_render(scene)            # сначала размер кадра — по нему подгоняется камера
     build_lights(scene)
     build_world(scene)
+    build_face_camera(scene)
     build_camera(scene)
     show_in_viewport()
     return scene
 
 
-def render():
+def set_mode(mode):
+    """'full' — целая шайба, 'body' — без логотипа и царапин, 'face' — только логотип и царапины."""
+    nodes = bpy.data.objects['Puck'].data.materials[0].node_tree.nodes
+    nodes['PUCK_MARKS'].outputs[0].default_value = 0.0 if mode == 'body' else 1.0
+    nodes['PUCK_SOLID'].outputs[0].default_value = 0.0 if mode == 'face' else 1.0
+
+
+def render_one(mode, camera, path):
+    scene = bpy.context.scene
+    set_mode(mode)
+    scene.camera = bpy.data.objects[camera]
+    scene.render.filepath = path
+    # для грани: «растянутые» пиксели превращают овал обратно в круг
+    scene.render.pixel_aspect_x = 1 / math.cos(math.radians(TILT)) if mode == 'face' else 1.0
     bpy.ops.render.render(write_still=True)
-    print('Готово:', OUT_PATH, round(os.path.getsize(OUT_PATH) / 1024), 'КБ')
+    scene.render.pixel_aspect_x = 1.0
+    print('Готово:', path, round(os.path.getsize(path) / 1024), 'КБ')
+
+
+def render():
+    scene = bpy.context.scene
+    render_one('face', 'PuckFaceCamera', OUT_FACE)
+    render_one('body', 'PuckCamera', OUT_BODY)
+    set_mode('full')                                # в окне Blender остаётся целая шайба
+    print('Числа для style.css (блок .puck-zone):')
+    for name, value in face_geometry(scene).items():
+        print(f'  {name}: {value};')
 
 
 if __name__ == '__main__':
     build_scene()
-    # даём окну Blender появиться, потом рендерим и сохраняем картинку
+    # даём окну Blender появиться, потом рендерим и сохраняем обе картинки
     bpy.app.timers.register(lambda: render(), first_interval=1.5)

@@ -404,12 +404,16 @@ def build_material(logo, scratches):
 
     # --- шум: неровности резины, потёртости, сколы ---
     grain = n.noise(pos, 340.0, 3.0, 0.6)
-    cloud = n.noise(pos, 2.6, 5.0, 0.6)
     wear_n = n.noise(pos, 8.0, 7.0, 0.65)
     chip_n = n.noise(pos, 46.0, 2.0, 0.5)
     # Потёртости тоже выключаются вместе с PUCK_MARKS: в картинке корпуса их быть не должно,
     # иначе при вращении они «стояли бы на месте» и выдавали, что корпус не крутится.
     worn = sw_marks.outputs[0]
+    # «Облака» — крупные пятна, где резина чуть светлее/темнее и глаже/шершавее. В картинке
+    # корпуса их тоже быть не должно: на сайте корпус не вращается, и пятна (светлое слева
+    # вверху, тёмное справа) ехали вместе с шайбой, но не крутились — владелец заметил
+    # «какую-то тень». Поэтому в корпусе резина ровная (0.5 — среднее значение шума).
+    cloud = n.mix(worn, 0.5, n.noise(pos, 2.6, 5.0, 0.6))
     edge_wear = n.m('MULTIPLY', n.m('MULTIPLY', edge, n.smooth(wear_n, 0.42, 0.68)), worn)
     chips = n.m('MULTIPLY', n.m('MULTIPLY', edge, n.smooth(chip_n, 0.71, 0.76)), worn)
     side_wear = n.m('MULTIPLY', n.m('MULTIPLY', n.m('MULTIPLY', band, knurl), n.smooth(wear_n, 0.4, 0.72)), worn)
@@ -655,7 +659,7 @@ def build_scene():
 
 
 def set_mode(mode):
-    """'full' — целая шайба, 'body' — чистый корпус (без логотипа, царапин и потёртостей),
+    """'full' — целая шайба, 'body' — чистый корпус (без логотипа, царапин, потёртостей и пятен),
     'face' — только логотип, царапины и потёртая кромка."""
     nodes = bpy.data.objects['Puck'].data.materials[0].node_tree.nodes
     nodes['PUCK_MARKS'].outputs[0].default_value = 0.0 if mode == 'body' else 1.0

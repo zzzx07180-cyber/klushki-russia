@@ -1,7 +1,7 @@
 // ===== Каталог: фильтры, сортировка, карточки =====
 // Товары — из data/products.js (window.PRODUCTS), общий код — из shop.js (window.Shop).
 // Выбранные фильтры попадают в адрес страницы (catalog.html?cat=sticks&type=restored&repair=blade),
-// поэтому ссылкой на подборку можно поделиться.
+// поэтому ссылкой на подборку можно поделиться. Брендов можно выбрать несколько: &brand=Bauer&brand=CCM.
 
 (function () {
   // Каталог вставляется в <div id="catalogApp"> — и на главной, и на catalog.html
@@ -31,7 +31,7 @@
 
       <div class="filters__row" id="fRow">
         <div class="filters__group">
-          <p class="panel__label">Бренд</p>
+          <p class="panel__label">Бренд <span class="panel__hint">можно несколько</span></p>
           <div class="chips chips--round" id="fBrand"></div>
         </div>
 
@@ -77,7 +77,8 @@
   const STICK_TYPES = TYPES.filter((t) => t.id === 'all' || PRODUCTS.some((p) => p.category === 'sticks' && p.type === t.id));
 
   // ----- Текущие фильтры -----
-  const state = { cat: (CATS[0] || CATEGORIES[0]).id, type: 'all', repair: 'all', brand: 'all', hand: 'all', stock: false, sort: 'default' };
+  // brands — список выбранных брендов; пустой список = «Все»
+  const state = { cat: (CATS[0] || CATEGORIES[0]).id, type: 'all', repair: 'all', brands: [], hand: 'all', stock: false, sort: 'default' };
 
   // Читаем фильтры из адреса (только на catalog.html). Поддерживаем и старые ссылки вида ?cat=sticks-original
   const params = new URLSearchParams(syncAddress ? location.search : '');
@@ -87,7 +88,7 @@
   if (STICK_TYPES.some((t) => t.id === params.get('type'))) state.type = params.get('type');
   if (!STICK_TYPES.some((t) => t.id === state.type)) state.type = 'all';
   if (REPAIRS.some((r) => r.id === params.get('repair'))) state.repair = params.get('repair');
-  if (params.get('brand')) state.brand = params.get('brand');
+  state.brands = [...new Set(params.getAll('brand').filter(Boolean))];
   if (params.get('hand')) state.hand = params.get('hand');
   state.stock = params.get('stock') === '1';
   if (['cheap', 'expensive'].includes(params.get('sort'))) state.sort = params.get('sort');
@@ -110,12 +111,15 @@
   const isEmptyCat = () => !PRODUCTS.some((p) => p.category === state.cat);
 
   // ----- Кнопки фильтров -----
+  // current — выбранное значение или функция «эта кнопка выбрана?» (у брендов выбранных может быть несколько)
   function renderButtons(container, items, current, onPick, cls) {
-    container.innerHTML = items.map((it) =>
-      `<button type="button" class="${cls}${it.id === current ? ' is-active' : ''}" data-id="${esc(it.id)}"` +
-      (cls === 'tab' ? ` role="tab" aria-selected="${it.id === current}"` : ` aria-pressed="${it.id === current}"`) +
-      `>${esc(it.label)}</button>`
-    ).join('');
+    const isOn = typeof current === 'function' ? current : (id) => id === current;
+    container.innerHTML = items.map((it) => {
+      const on = isOn(it.id);
+      return `<button type="button" class="${cls}${on ? ' is-active' : ''}" data-id="${esc(it.id)}"` +
+        (cls === 'tab' ? ` role="tab" aria-selected="${on}"` : ` aria-pressed="${on}"`) +
+        `>${esc(it.label)}</button>`;
+    }).join('');
     container.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => onPick(b.dataset.id)));
   }
 
@@ -124,7 +128,7 @@
 
   function renderFilters() {
     renderButtons(el.category, CATS, state.cat, (id) => {
-      state.cat = id; state.type = 'all'; state.repair = 'all'; state.brand = 'all'; state.hand = 'all';
+      state.cat = id; state.type = 'all'; state.repair = 'all'; state.brands = []; state.hand = 'all';
       update();
     }, 'tab');
 
@@ -151,9 +155,16 @@
     // Бренды и хваты — только те, что реально есть в выбранном разделе
     const inCat = PRODUCTS.filter((p) => p.category === state.cat);
     const brands = unique(inCat.map((p) => p.brand)).sort();
-    if (state.brand !== 'all' && !brands.includes(state.brand)) state.brand = 'all';
+    state.brands = state.brands.filter((b) => brands.includes(b));   // бренды, которых в разделе нет, забываем
+    // Бренд — переключатель: нажал — добавился к выбору, нажал ещё раз — убрался. «Все» снимает выбор.
     renderButtons(el.brand, [{ id: 'all', label: 'Все' }, ...brands.map((b) => ({ id: b, label: b }))],
-      state.brand, (id) => { state.brand = id; update(); }, 'chip');
+      (id) => id === 'all' ? state.brands.length === 0 : state.brands.includes(id),
+      (id) => {
+        if (id === 'all') state.brands = [];
+        else if (state.brands.includes(id)) state.brands = state.brands.filter((b) => b !== id);
+        else state.brands = [...state.brands, id];
+        update();
+      }, 'chip');
 
     // Хват: без кнопки «Любой» — повторное нажатие снимает фильтр
     if (isSticks()) {
@@ -171,7 +182,7 @@
       p.category === state.cat &&
       (!isSticks() || state.type === 'all' || p.type === state.type) &&
       (!isRestored() || state.repair === 'all' || p.repair === state.repair) &&
-      (state.brand === 'all' || p.brand === state.brand) &&
+      (state.brands.length === 0 || state.brands.includes(p.brand)) &&
       (!isSticks() || state.hand === 'all' || (p.specs && p.specs.hand === state.hand)) &&
       (!state.stock || p.inStock)
     );
@@ -240,7 +251,7 @@
     q.set('cat', state.cat);
     if (isSticks() && state.type !== 'all') q.set('type', state.type);
     if (isRestored() && state.repair !== 'all') q.set('repair', state.repair);
-    if (state.brand !== 'all') q.set('brand', state.brand);
+    state.brands.forEach((b) => q.append('brand', b));
     if (isSticks() && state.hand !== 'all') q.set('hand', state.hand);
     if (state.stock) q.set('stock', '1');
     if (state.sort !== 'default') q.set('sort', state.sort);

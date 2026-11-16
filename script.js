@@ -42,6 +42,28 @@ if (puckZone && puck) {
   });
 
   puck.addEventListener('click', launchPuck);
+
+  // Экран стал заметно больше (повернули телефон, развернули окно) — готовим холст шайбы
+  // заново, крупнее, чтобы она осталась чёткой (см. puckCanvasSize). Пока шайба едет — ждём.
+  let resizeTimer = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function grow() {
+      if (!puckSide || puckCanvasSize(puckZone) <= puckSide.size * 1.1) return;
+      if (puckSide.busy()) { resizeTimer = setTimeout(grow, 500); return; }
+      puckSide.dispose();
+      try { puckSide = setupPuckSide(puckZone, puck); } catch (e) { puckSide = null; }
+    }, 300);
+  });
+}
+
+// Размер холста шайбы — сколько точек она реально занимает на экране (с учётом его чёткости),
+// но не больше картинок (960) и не меньше 640: мельче узор рифления на бортике начинает рябить.
+// Раньше холст всегда был 960×960 — на компьютере видеочип рисовал в 4 раза больше точек,
+// чем видно, на iPhone — примерно на треть больше.
+function puckCanvasSize(zone) {
+  const shown = zone.offsetWidth * (window.devicePixelRatio || 1);
+  return 2 * Math.round(Math.min(960, Math.max(640, shown)) / 2);
 }
 
 // ===== Шайба крутится целиком: и логотип, и бортик =====
@@ -74,6 +96,7 @@ function setupPuckSide(zone, button) {
   const WEAR_STRENGTH = 0.9;            // насколько заметны потёртости (0 — не видны, 1 — яркие)
 
   // Где на картинке лежит шайба — из тех же чисел, что и в style.css (--face-…)
+  canvas.width = canvas.height = puckCanvasSize(zone);
   const S = canvas.width;
   const style = getComputedStyle(zone);
   const num = (name) => parseFloat(style.getPropertyValue(name));
@@ -98,6 +121,7 @@ function setupPuckSide(zone, button) {
   let frame = 0;                        // номер запланированного кадра (0 — шайба стоит)
   let t0 = 0;                           // когда началось вращение
   let angleDeg = 0;                     // на сколько градусов шайба повёрнута сейчас
+  let disposed = false;                 // этот холст заменён новым (экран стал больше)
 
   // ---------- Способ 1: видеочип (WebGL) ----------
   // Видеочип сам решает для КАЖДОЙ точки холста, какого она цвета, по «рецепту» ниже
@@ -257,7 +281,13 @@ function setupPuckSide(zone, button) {
       return null;
     }
 
-    const me = { face: true, off: false, draw: draw };
+    // release — отдать видеочип обратно, когда холст заменяется новым
+    let gone = false;
+    const me = { face: true, off: false, draw: draw, release: () => {
+      gone = true;
+      const ext = gl.getExtension('WEBGL_lose_context');
+      if (ext) ext.loseContext();
+    } };
     draw(0);
     button.classList.add('has-side', 'has-face');        // холст готов — прячем обычные картинки шайбы
 
@@ -272,6 +302,7 @@ function setupPuckSide(zone, button) {
     // Телефон может «отобрать» видеочип (вкладка долго была свёрнута). Тогда показываем обычные
     // картинки шайбы, а когда видеочип вернут — готовим всё заново.
     canvas.addEventListener('webglcontextlost', (e) => {
+      if (gone) return;                                  // холст уже заменён новым — его не трогаем
       e.preventDefault();
       ok = false;
       me.off = true;
@@ -292,12 +323,13 @@ function setupPuckSide(zone, button) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
-    // Вертикальные полоски: в середине шире, у краёв уже (там бортик сильнее изгибается)
+    // Вертикальные полоски: в середине шире, у краёв уже (там бортик сильнее изгибается).
+    // Ширина — в долях холста (8 точек на холсте 960), чтобы на любом размере рисунок был тот же.
     const cols = [];
     const xEnd = Math.floor(xOf(EDGE));
     for (let x = Math.ceil(xOf(-EDGE)); x < xEnd;) {
       const phi = Math.asin((x - cx) / R);
-      const w = Math.min(xEnd - x, Math.max(2, Math.round(8 * Math.cos(phi))));
+      const w = Math.min(xEnd - x, Math.max(2, Math.round(8 * S / 960 * Math.cos(phi))));
       const p1 = Math.asin((x + w - cx) / R);
       cols.push({ x0: x, x1: x + w, p0: phi, p1: p1, y0: topOf(phi), y1: topOf(p1) });
       x += w;
@@ -433,7 +465,7 @@ function setupPuckSide(zone, button) {
   }
 
   function init() {
-    if (painter || !body.naturalWidth || !face.naturalWidth) return;
+    if (disposed || painter || !body.naturalWidth || !face.naturalWidth) return;
     painter = makeGlPainter() || make2dPainter();
   }
   init();
@@ -449,6 +481,22 @@ function setupPuckSide(zone, button) {
 
   return {
     start: start,
+    size: S,                                             // размер холста в точках
+    busy: () => frame !== 0,                             // шайба сейчас едет и крутится
+    // Убрать этот холст: экран стал больше, и шайбу подготовят заново на холсте крупнее
+    dispose: () => {
+      disposed = true;
+      cancelAnimationFrame(frame);
+      frame = 0;
+      if (painter) {
+        painter.off = true;
+        if (painter.release) painter.release();
+      }
+      button.classList.remove('has-side', 'has-face');
+      face.style.transform = '';
+      const fresh = canvas.cloneNode(false);
+      canvas.parentNode.replaceChild(fresh, canvas);
+    },
     draw: (angle) => { if (painter) painter.draw(angle); },
     mode: () => (painter ? (painter.face ? 'webgl' : 'canvas') : 'css')
   };

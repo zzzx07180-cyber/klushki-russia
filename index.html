@@ -52,7 +52,10 @@
 
         <!-- Шайба с логотипом. Въезжает по льду при открытии сайта и при нажатии.
              Сложена из слоёв: корпус, холст с вращающимся бортиком и верхняя грань с логотипом. -->
-        <div class="puck-zone">
+        <!-- is-waiting: шайба спрятана с самого начала, пока не начнётся въезд (иначе она мелькала
+             на своём месте и прыгала за экран). Без JavaScript её показывает <noscript> ниже. -->
+        <div class="puck-zone is-waiting">
+          <noscript><style>.puck-zone.is-waiting .puck-slide { opacity: 1; }</style></noscript>
           <span class="puck-trail" aria-hidden="true"><i></i></span>
           <div class="puck-slide">
             <span class="puck-shadow" aria-hidden="true"></span>

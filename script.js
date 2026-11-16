@@ -104,8 +104,11 @@ function setupPuckSide(zone, button) {
 
   function prepareWear() {
     if (wear || !wearImg || !wearImg.naturalWidth) return;
-    ctx.globalCompositeOperation = 'color-dodge';        // режим «осветлить то, что под рисунком»
-    const supported = ctx.globalCompositeOperation === 'color-dodge';
+    // Потёртости «прибавляют свет» к бортику (режим lighter). Режимы вроде color-dodge не годятся:
+    // браузер считает их медленно, и в момент, когда шайба заезжает на экран, анимация
+    // замирала на 0,2 секунды — шайба «выпрыгивала» уже посреди пути.
+    ctx.globalCompositeOperation = 'lighter';
+    const supported = ctx.globalCompositeOperation === 'lighter';
     ctx.globalCompositeOperation = 'source-over';
     if (!supported) return;                              // очень старый браузер — просто без потёртостей
     wear = document.createElement('canvas');
@@ -159,7 +162,7 @@ function setupPuckSide(zone, button) {
       const perRad = tw / TURN;
       const passes = Math.max(1, Math.min(6, Math.ceil(Math.abs(step) / 0.012)));
       ctx.globalAlpha = WEAR_STRENGTH / passes;
-      ctx.globalCompositeOperation = 'color-dodge';
+      ctx.globalCompositeOperation = 'lighter';
       for (let k = 0; k < passes; k++) {
         const turned = angle - step * k / passes;
         for (let i = 0; i < cols.length; i++) {

@@ -178,39 +178,40 @@ function setupPuckSide(zone, button) {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
-  // На какой угол сейчас повёрнута картинка с логотипом
-  function angleNow() {
-    const m = getComputedStyle(face).transform.match(/^matrix\(([^,]+),([^,]+)/);
-    return m ? Math.atan2(parseFloat(m[2]), parseFloat(m[1])) : 0;
-  }
+  // Логотип и бортик поворачивает ОДИН И ТОТ ЖЕ кусок кода, в одном и том же кадре.
+  // Раньше логотип крутила CSS-анимация, а бортик «подглядывал» её угол. Но Safari на iPhone
+  // проигрывает CSS-анимацию отдельно (на видеочипе), и подсмотренный угол отставал —
+  // верх и бортик крутились вразнобой. Теперь угол считается здесь и сразу ставится обоим.
+  // Время и угол берём из style.css (--slide-time, --spin), чтобы шайба по-прежнему
+  // останавливалась и переставала крутиться одновременно.
+  const duration = (parseFloat(style.getPropertyValue('--slide-time')) || 1.7) * 1000;
+  const spinDeg = parseFloat(style.getPropertyValue('--spin')) || -540;
+  const calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  // Угол в момент t (от 0 до 1). Торможение равномерное, как у скольжения:
+  // кривая --ice-friction — это ровно «путь = 2t − t²».
+  const degAt = (t) => spinDeg * (1 - (2 * t - t * t));
 
   let frame = 0;
-  let last = 0;
-  let stopTimer = 0;
+  let t0 = 0;
 
-  function tick() {
-    const angle = angleNow();
-    let step = angle - last;
-    if (step > Math.PI) step -= TURN;
-    if (step < -Math.PI) step += TURN;
-    last = angle;
-    draw(angle, step);
-    frame = requestAnimationFrame(tick);
+  function show(deg) {
+    face.style.transform = 'rotate(' + deg + 'deg)';
+    draw(deg * Math.PI / 180, 0);
   }
-  function stop() {
-    cancelAnimationFrame(frame);
-    clearTimeout(stopTimer);
-    frame = 0;
-    draw(0, 0);                                          // шайба остановилась — рисуем её ровно
+  function tick(now) {
+    if (!t0) t0 = now;
+    const t = Math.min(1, (now - t0) / duration);
+    show(degAt(t));
+    frame = t < 1 ? requestAnimationFrame(tick) : 0;
   }
   function start() {
     cancelAnimationFrame(frame);
-    clearTimeout(stopTimer);
-    last = angleNow();
+    if (calm && calm.matches) { show(0); return; }      // анимации отключены в системе — шайба лежит ровно
+    t0 = 0;
+    show(degAt(0));                                      // сразу ставим начальный угол, без мелькания
     frame = requestAnimationFrame(tick);
-    stopTimer = setTimeout(stop, 6000);                  // страховка, если анимации отключены
   }
-  face.addEventListener('animationend', (e) => { if (e.animationName === 'puck-spin') stop(); });
 
   function init() {
     if (ready || !body.naturalWidth) return;
@@ -222,6 +223,7 @@ function setupPuckSide(zone, button) {
     try {
       draw(0, 0);
       button.classList.add('has-side');                  // холст готов — прячем обычную картинку корпуса
+      zone.classList.add('js-spin');                     // логотип теперь крутит script.js, а не CSS
     } catch (e) {
       ready = false;                                     // не получилось — остаётся обычная картинка
     }

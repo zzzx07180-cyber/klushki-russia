@@ -279,6 +279,9 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 .puck-zone.is-flying .puck-slide  { animation: puck-slide var(--slide-time) var(--ice-friction) both; }
 .puck-zone.is-flying .puck__marks { animation: puck-spin var(--slide-time) var(--ice-friction) both; }
+/* Когда бортик рисуется на холсте, логотип крутит script.js — в том же кадре, что и бортик
+   (иначе на iPhone верх и бортик расходились). CSS-вращение остаётся запасным вариантом. */
+.puck-zone.js-spin.is-flying .puck__marks { animation: none; }
 /* след: растёт ровно вместе с шайбой, а когда она остановилась — тает */
 .puck-zone.is-flying .puck-trail i {
   animation: puck-trail-grow var(--slide-time) var(--ice-friction) both,

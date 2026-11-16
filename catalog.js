@@ -31,7 +31,7 @@
 
       <div class="filters__row" id="fRow">
         <div class="filters__group">
-          <p class="panel__label">Бренд <span class="panel__hint">можно несколько</span></p>
+          <p class="panel__label">Бренд</p>
           <div class="chips chips--round" id="fBrand"></div>
         </div>
 

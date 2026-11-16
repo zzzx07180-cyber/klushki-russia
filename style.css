@@ -359,9 +359,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .tab:hover { color: var(--white); background: rgba(255, 255, 255, .13); }
 .tab.is-active { background: var(--accent); color: #fff; box-shadow: 0 0 18px var(--accent-glow); }
 
-/* маленькая подсказка рядом с названием фильтра («можно несколько») */
-.panel__hint { margin-left: 6px; font-weight: 500; font-size: 12px; text-transform: none; letter-spacing: .5px; color: var(--ice); }
-
 .panel__sub { margin-top: 20px; padding-left: 14px; border-left: 3px solid var(--accent); }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {

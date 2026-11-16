@@ -59,13 +59,20 @@
       </div>
     </div>
 
-    <p class="found" id="found" aria-live="polite"></p>
+    <div class="found-row">
+      <p class="found" id="found" aria-live="polite"></p>
+      <!-- Появляется, только когда выбран хоть один фильтр -->
+      <button type="button" class="reset" id="fReset" hidden><span class="reset__x" aria-hidden="true">✕</span> Сбросить фильтры</button>
+    </div>
     <div class="products" id="products"></div>
 
     <div class="empty" id="empty" hidden>
       <p class="empty__title" id="emptyTitle">Ничего не нашлось</p>
       <p id="emptyText">Попробуй убрать часть фильтров — или напиши нам, найдём под заказ.</p>
-      <a href="https://t.me/" class="btn" target="_blank" rel="noopener">Написать в Telegram</a>
+      <div class="empty__actions">
+        <button type="button" class="btn btn--dark" id="fResetEmpty" hidden>Сбросить фильтры</button>
+        <a href="https://t.me/" class="btn" target="_blank" rel="noopener">Написать в Telegram</a>
+      </div>
     </div>`;
 
   // Показываем только разделы и типы клюшек, в которых реально есть товары —
@@ -101,7 +108,8 @@
     brand: $('fBrand'), handBox: $('fHandBox'), hand: $('fHand'),
     stock: $('fStock'), sort: $('fSort'),
     found: $('found'), products: $('products'), empty: $('empty'),
-    row: $('fRow'), emptyTitle: $('emptyTitle'), emptyText: $('emptyText')
+    row: $('fRow'), emptyTitle: $('emptyTitle'), emptyText: $('emptyText'),
+    reset: $('fReset'), resetEmpty: $('fResetEmpty')
   };
 
   const unique = (arr) => [...new Set(arr)];
@@ -109,6 +117,18 @@
   const isRestored = () => isSticks() && state.type === 'restored';
   // В разделе пока нет ни одного товара (например, «Коньки»)
   const isEmptyCat = () => !PRODUCTS.some((p) => p.category === state.cat);
+
+  // ----- Сброс фильтров -----
+  // Выбран ли хоть один фильтр, который прячет часть товаров (раздел и сортировка не в счёт)
+  const hasFilters = () =>
+    (isSticks() && state.type !== 'all') || (isRestored() && state.repair !== 'all') ||
+    state.brands.length > 0 || (isSticks() && state.hand !== 'all') || state.stock;
+
+  // Раздел и сортировку оставляем — покупатель снова видит все товары этого раздела
+  function resetFilters() {
+    state.type = 'all'; state.repair = 'all'; state.brands = []; state.hand = 'all'; state.stock = false;
+    update();
+  }
 
   // ----- Кнопки фильтров -----
   // current — выбранное значение или функция «эта кнопка выбрана?» (у брендов выбранных может быть несколько)
@@ -233,6 +253,9 @@
     el.empty.hidden = list.length > 0;
     el.found.hidden = isEmptyCat();
     el.found.textContent = 'Найдено: ' + list.length;
+    // Кнопка «Сбросить»: при пустом результате — только большая, в блоке «Ничего не нашлось»
+    el.resetEmpty.hidden = isEmptyCat() || !hasFilters();
+    el.reset.hidden = el.resetEmpty.hidden || list.length === 0;
     if (isEmptyCat()) {
       const name = category(state.cat).label;
       el.emptyTitle.textContent = name + ' — под заказ';
@@ -266,6 +289,8 @@
 
   el.stock.addEventListener('change', () => { state.stock = el.stock.checked; update(); });
   el.sort.addEventListener('change', () => { state.sort = el.sort.value; update(); });
+  el.reset.addEventListener('click', resetFilters);
+  el.resetEmpty.addEventListener('click', resetFilters);
   window.Shop.bindOrderButtons(el.products);
 
   update();

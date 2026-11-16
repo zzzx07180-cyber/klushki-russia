@@ -23,51 +23,23 @@ const puck = document.getElementById('puck');
 let puckSide = null;                    // «художник», который вращает бортик (см. ниже)
 
 function launchPuck() {
-  if (puckZone.classList.contains('is-flying')) {
-    puckZone.classList.remove('is-flying');
-    void puckZone.offsetWidth;          // «перезагружаем» анимацию, чтобы она сыграла ещё раз
-  }
-  puckZone.classList.remove('is-waiting');
+  puckZone.classList.remove('is-waiting', 'is-flying');
+  void puckZone.offsetWidth;            // «перезагружаем» анимацию, чтобы она сыграла ещё раз
   puckZone.classList.add('is-flying');
   if (puckSide) puckSide.start();
 }
 
 if (puckZone && puck) {
-  // Шайба должна въезжать, когда браузер ничем другим не занят, — иначе первые кадры дёргаются
-  // (особенно на телефоне). Поэтому перед запуском ждём (но не дольше 2 секунд):
-  //   1) картинки шайбы — иначе на медленном интернете она «въедет» невидимой;
-  //   2) шрифты — когда шрифт подгружается, браузер заново раскладывает весь текст страницы,
-  //      и если это случится посреди въезда, шайба на миг замрёт.
+  // Шайба сложена из нескольких картинок. Ждём, пока они загрузятся (но не дольше 2 секунд),
+  // и только потом запускаем — иначе на медленном интернете шайба «въедет» невидимой.
   puckZone.classList.add('is-waiting');
   const images = Array.from(puck.querySelectorAll('img'));
   const loaded = images.map((img) => (img.decode ? img.decode().catch(() => {}) : Promise.resolve()));
-  // Пропустить n кадров (а если браузер сейчас кадры не рисует — не ждать дольше 0,3 секунды)
-  const frames = (n) => new Promise((resolve) => {
-    let left = n;
-    const step = () => { left -= 1; if (left > 0) requestAnimationFrame(step); else resolve(); };
-    requestAnimationFrame(step);
-    setTimeout(resolve, 300);
-  });
-  const fonts = () => (document.fonts && document.fonts.ready ? document.fonts.ready : null);
-  // Сайт открыт в фоновой вкладке — ждём, пока человек на неё перейдёт: пусть увидит въезд
-  const seen = () => new Promise((resolve) => {
-    const check = () => {
-      if (document.hidden) return;
-      document.removeEventListener('visibilitychange', check);
-      resolve();
-    };
-    document.addEventListener('visibilitychange', check);
-    check();
-  });
-  // (два кадра перед шрифтами — чтобы браузер успел показать страницу и начал их качать)
-  const ready = Promise.all(loaded).then(() => frames(2)).then(fonts).catch(() => {});
   const tooLong = new Promise((resolve) => setTimeout(resolve, 2000));
-  Promise.race([ready, tooLong]).then(seen).then(() => {
+  Promise.race([Promise.all(loaded), tooLong]).then(() => {
     try { puckSide = setupPuckSide(puckZone, puck); } catch (e) { puckSide = null; }
-    // Подготовка холста — тяжёлая работа. Пропускаем два кадра, чтобы она точно закончилась
-    // ДО начала въезда, а не пришлась на его первые кадры.
-    return frames(2);
-  }).then(launchPuck);
+    launchPuck();
+  });
 
   puck.addEventListener('click', launchPuck);
 }
@@ -145,9 +117,8 @@ function setupPuckSide(zone, button) {
     'varying vec2 p;',                                   // точка холста, которую красим
     'uniform sampler2D body, logo, wear;',               // три картинки шайбы
     'uniform vec2 center;',
-    'uniform float size, radius, squash, bevel, bandH, below, bandTop, angle, shift, wearStrength;',
-    'uniform vec2 turn;',                                // косинус и синус угла (считаются один раз на кадр)
-    'const float EDGE_SIN = ' + Math.sin(EDGE).toFixed(7) + ';',
+    'uniform float size, radius, squash, bevel, bandH, below, angle, shift, wearStrength;',
+    'const float EDGE = ' + EDGE.toFixed(7) + ';',
     'const float SRC_EDGE = ' + SRC_EDGE.toFixed(7) + ';',
     'const float TURN = ' + TURN.toFixed(7) + ';',
     'float topOf(float phi) { return center.y + radius * squash * cos(phi) + bevel; }',
@@ -155,7 +126,7 @@ function setupPuckSide(zone, button) {
     '  vec2 from = p;',                                  // откуда с картинки корпуса брать цвет
     '  vec3 light = vec3(0.0);',                         // свет от потёртостей
     '  float dx = (p.x - center.x) / radius;',
-    '  if (p.y >= bandTop && abs(dx) < EDGE_SIN) {',       // выше бортика считать нечего — сразу дальше
+    '  if (abs(dx) < sin(EDGE)) {',
     '    float phi = asin(dx);',                         // под каким углом к зрителю эта точка бортика
     '    float top = topOf(phi);',
     '    if (p.y >= top - 1.0 && p.y <= top + bandH + below + 1.0) {',
@@ -173,7 +144,9 @@ function setupPuckSide(zone, button) {
     '  color.rgb = min(color.rgb + light * color.a, vec3(1.0));',
     // 3) логотип: круг, повёрнутый на angle и сжатый в овал (шайба наклонена)
     '  vec2 f = vec2(p.x - center.x, (p.y - center.y) / squash);',
-    '  vec2 t = vec2(turn.x * f.x + turn.y * f.y, turn.x * f.y - turn.y * f.x) / (2.0 * radius) + 0.5;',
+    '  float c = cos(angle);',
+    '  float s = sin(angle);',
+    '  vec2 t = vec2(c * f.x + s * f.y, c * f.y - s * f.x) / (2.0 * radius) + 0.5;',
     '  if (t.x >= 0.0 && t.x <= 1.0 && t.y >= 0.0 && t.y <= 1.0) {',
     '    vec4 mark = texture2D(logo, t);',
     '    color = mark + color * (1.0 - mark.a);',
@@ -197,7 +170,6 @@ function setupPuckSide(zone, button) {
     let program = null;
     let uAngle = null;
     let uShift = null;
-    let uTurn = null;
     const isPowerOfTwo = (n) => n > 0 && (n & (n - 1)) === 0;
 
     function shader(type, text) {
@@ -253,14 +225,12 @@ function setupPuckSide(zone, button) {
       set('bevel', BEVEL * lean);
       set('bandH', bandH);
       set('below', below);
-      set('bandTop', topOf(EDGE) - 1);                   // самая верхняя строка, где ещё есть бортик
       gl.uniform2f(gl.getUniformLocation(program, 'center'), cx, cy);
       gl.uniform1i(gl.getUniformLocation(program, 'body'), 0);
       gl.uniform1i(gl.getUniformLocation(program, 'logo'), 1);
       gl.uniform1i(gl.getUniformLocation(program, 'wear'), 2);
       uAngle = gl.getUniformLocation(program, 'angle');
       uShift = gl.getUniformLocation(program, 'shift');
-      uTurn = gl.getUniformLocation(program, 'turn');
 
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
       texture(0, body, false);
@@ -273,10 +243,8 @@ function setupPuckSide(zone, button) {
 
     function draw(angle) {
       if (!ok) return;
-      const a = wrap(angle, TURN);
-      gl.uniform1f(uAngle, a);
+      gl.uniform1f(uAngle, wrap(angle, TURN));
       gl.uniform1f(uShift, wrap(angle, pitch));          // узор рифления повторяется каждый ромбик
-      gl.uniform2f(uTurn, Math.cos(a), Math.sin(a));
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 
@@ -291,9 +259,6 @@ function setupPuckSide(zone, button) {
 
     const me = { face: true, off: false, draw: draw };
     draw(0);
-    // Заставляем видеочип закончить всю подготовку (программу, картинки, первый кадр) прямо
-    // сейчас, пока шайба ещё спрятана. Иначе он доделывал бы её уже во время въезда — рывок на старте.
-    try { gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4)); } catch (e) { /* не страшно */ }
     button.classList.add('has-side', 'has-face');        // холст готов — прячем обычные картинки шайбы
 
     // Потёртости загрузились позже остального — добавляем
@@ -426,11 +391,9 @@ function setupPuckSide(zone, button) {
   }
 
   // ---------- Вращение ----------
-  // Угол считается здесь и сразу отдаётся «художнику». Часы у вращения — те же, что у скольжения:
-  // скольжение — CSS-анимация (style.css), и мы каждый кадр спрашиваем у неё, сколько времени
-  // уже прошло. Поэтому шайба останавливается и перестаёт крутиться в один и тот же момент,
-  // даже если телефон на секунду «задумался» или вкладку сворачивали посреди въезда.
-  // Время и угол берём из style.css (--slide-time, --spin).
+  // Угол считается здесь, по часам, и сразу отдаётся «художнику». Время и угол берём
+  // из style.css (--slide-time, --spin), чтобы шайба останавливалась и переставала крутиться
+  // в один и тот же момент.
   const duration = (parseFloat(style.getPropertyValue('--slide-time')) || 1.7) * 1000;
   const spinDeg = parseFloat(style.getPropertyValue('--spin')) || -540;
   const calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -448,31 +411,10 @@ function setupPuckSide(zone, button) {
   function refresh() {
     if (painter && !painter.off && !frame) show(angleDeg);
   }
-  const slide = zone.querySelector('.puck-slide');
-  let clock = null;                     // анимация скольжения — по ней сверяем время
-
-  function findClock() {
-    clock = null;
-    if (!slide || !slide.getAnimations) return;          // старый браузер — считаем время сами
-    const list = slide.getAnimations();
-    for (let i = 0; i < list.length; i++) {
-      if (list[i].animationName === 'puck-slide') clock = list[i];
-    }
-  }
-  // Какая часть пути уже пройдена: 0 — шайба только выезжает, 1 — остановилась
-  function progress(now) {
-    if (clock) {
-      if (clock.playState === 'idle') return 1;          // скольжение отменено — шайба стоит
-      if (typeof clock.currentTime === 'number') {
-        return Math.min(1, Math.max(0, clock.currentTime / duration));
-      }
-    }
-    if (!t0) t0 = now;
-    return Math.min(1, (now - t0) / duration);
-  }
   function tick(now) {
     if (painter.off) { frame = 0; return; }
-    const t = progress(now);
+    if (!t0) t0 = now;
+    const t = Math.min(1, (now - t0) / duration);
     show(degAt(t));
     frame = t < 1 ? requestAnimationFrame(tick) : 0;
   }
@@ -485,7 +427,6 @@ function setupPuckSide(zone, button) {
     }
     zone.classList.add('js-spin');
     if (calm && calm.matches) { show(0); return; }       // анимации отключены в системе — шайба лежит ровно
-    findClock();
     t0 = 0;
     show(degAt(0));                                      // сразу ставим начальный угол, без мелькания
     frame = requestAnimationFrame(tick);

@@ -18,6 +18,42 @@
     };
   }
 
+  // Плавная «ступенька» от 1 до 0 — как край пятна, размытого на sigma пикселей
+  // (функция ошибок erf, формула приближения Абрамовица — Стиган)
+  function erf(x) {
+    const s = x < 0 ? -1 : 1;
+    x = Math.abs(x);
+    const t = 1 / (1 + 0.3275911 * x);
+    const y = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+    return s * y;
+  }
+  const edge = (d, sigma) => 0.5 * (1 + erf(d / (sigma * Math.SQRT2)));   // d > 0 — внутри пятна
+
+  // Мягкий эллипс: то же, что эллипс с размытием, но нарисованный радиальным градиентом
+  function softEllipse(x, y, rx, ry, rot, sigma, rgb, alpha) {
+    const reach = 2.5 * sigma;                          // насколько далеко тянется размытый край
+    const ex = rx + reach;
+    const ey = ry + reach;
+    // тонкое пятно при размытии становится бледнее — как и с настоящим blur
+    const peak = alpha * erf(ry / (sigma * Math.SQRT2)) * erf(rx / (sigma * Math.SQRT2));
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.scale(1, ey / ex);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, ex);
+    const STEPS = 12;
+    for (let k = 0; k <= STEPS; k++) {
+      const r = ex * k / STEPS;
+      const a = k === STEPS ? 0 : peak * edge(rx - r, sigma);
+      g.addColorStop(k / STEPS, 'rgba(' + rgb + ',' + a.toFixed(4) + ')');
+    }
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, ex, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   function draw() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     // размер берём у самого холста (в CSS он растянут на весь экран)
@@ -38,9 +74,10 @@
     ctx.fillStyle = base;
     ctx.fillRect(0, 0, w, h);
 
-    // 2. Облачные разводы: размытые светлые и тёмные пятна, вытянутые по горизонтали
-    ctx.save();
-    ctx.filter = 'blur(' + Math.round(Math.max(w, h) / 70) + 'px)';
+    // 2. Облачные разводы: мягкие светлые и тёмные пятна, вытянутые по горизонтали.
+    //    Края пятен размываются ГРАДИЕНТОМ, а не ctx.filter = 'blur(…)': Safari на iPhone
+    //    (и браузер внутри Telegram) такой фильтр не умеет — там вместо облаков были резкие овалы.
+    const sigma = Math.max(w, h) / 70;                     // сила размытия краёв, px
     const blobs = Math.round((w * h) / 6000);
     for (let i = 0; i < blobs; i++) {
       const x = R(-0.1, 1.1) * w;
@@ -48,14 +85,10 @@
       const rx = R(30, 200);
       const ry = rx * R(0.25, 0.5);
       const light = rnd() < 0.6;
-      ctx.fillStyle = light
-        ? 'rgba(160, 190, 225,' + R(0.08, 0.26) + ')'
-        : 'rgba(6, 14, 28,' + R(0.1, 0.26) + ')';
-      ctx.beginPath();
-      ctx.ellipse(x, y, rx, ry, R(-0.25, 0.25), 0, Math.PI * 2);
-      ctx.fill();
+      const rgb = light ? '160, 190, 225' : '6, 14, 28';
+      const alpha = light ? R(0.08, 0.26) : R(0.1, 0.26);
+      softEllipse(x, y, rx, ry, R(-0.25, 0.25), sigma, rgb, alpha);
     }
-    ctx.restore();
 
     // 3. Царапины от коньков
     ctx.lineCap = 'round';

@@ -119,23 +119,25 @@ function setupPuckSide(zone, button) {
     w.drawImage(wearImg, wearImg.naturalWidth, 0);
   }
 
-  // Рисует корпус, повёрнутый на angle (в радианах). step — на сколько он повернулся
-  // с прошлого кадра: при быстром вращении рифление смазывается, как в жизни.
-  function draw(angle, step) {
+  // Копия картинки корпуса на отдельном холсте: Safari на iPhone рисует с холста намного
+  // быстрее, чем с <img>, а рисовать приходится сотни кусочков за кадр.
+  let src = null;
+
+  // Рисует корпус, повёрнутый на angle (в радианах). Всегда ЧЁТКО, без «смаза»:
+  // раньше при быстром вращении рифление намеренно размывалось, но на iPhone (где кадров
+  // меньше) бортик превращался в мутное пятно — владелец попросил убрать.
+  // (step больше не используется — оставлен, чтобы не менять, как вызывают draw.)
+  function draw(angle, step) {      // eslint-disable-line no-unused-vars
     if (!ready) return;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
     ctx.clearRect(0, 0, S, S);
-    ctx.drawImage(body, 0, 0, S, S);
+    ctx.drawImage(src, 0, 0, S, S);
 
     // 1) Рифление. Узор повторяется каждый ромбик, поэтому важен только сдвиг внутри ромбика.
-    const blurRange = Math.min(Math.abs(step), pitch);
-    const samples = blurRange > pitch / 8 ? 4 : 1;
-    for (let k = 0; k < samples; k++) {
-      const shift = wrap(angle - blurRange * k / samples, pitch);
-      if (shift < 1e-4 && k === 0) continue;             // сдвига нет — корпус уже нарисован как надо
-      ctx.globalAlpha = 1 / (k + 1);                     // 1, 1/2, 1/3… — в сумме получается среднее
+    const shift = wrap(angle, pitch);
+    if (shift > 1e-4) {                                  // сдвига нет — корпус уже нарисован как надо
       for (let i = 0; i < cols.length; i++) {
         const c = cols[i];
         const s0 = Math.min(c.p0 + shift, SRC_EDGE);
@@ -148,32 +150,27 @@ function setupPuckSide(zone, button) {
         const a = (c.x1 - c.x0) / sw;
         const b = ((c.y1 - sy1) - (c.y0 - sy0)) / sw;
         ctx.setTransform(a, b, 0, 1, c.x0 - a * sx, (c.y0 - sy0) - b * sx);
-        const top = Math.min(sy0, sy1) - 1;
-        const h = Math.abs(sy1 - sy0) + bandH + below + 2;
-        ctx.drawImage(body, sx, top, sw, h, sx, top, sw, h);
+        const top = Math.max(0, Math.min(sy0, sy1) - 1);
+        const h = Math.min(S - top, Math.abs(sy1 - sy0) + bandH + below + 2);   // не выходим за край картинки (Safari тогда ничего не рисует)
+        ctx.drawImage(src, sx, top, sw, h, sx, top, sw, h);
       }
     }
 
-    // 2) Потёртости: едут по бортику вместе с ним. При быстром вращении рисуем их несколько раз
-    //    бледнее и со сдвигом — получается «смаз», как у настоящего быстрого предмета.
+    // 2) Потёртости: едут по бортику вместе с ним
     if (wear) {
       const tw = wear.width / 2;
       const th = wear.height;
       const perRad = tw / TURN;
-      const passes = Math.max(1, Math.min(6, Math.ceil(Math.abs(step) / 0.012)));
-      ctx.globalAlpha = WEAR_STRENGTH / passes;
+      ctx.globalAlpha = WEAR_STRENGTH;
       ctx.globalCompositeOperation = 'lighter';
-      for (let k = 0; k < passes; k++) {
-        const turned = angle - step * k / passes;
-        for (let i = 0; i < cols.length; i++) {
-          const c = cols[i];
-          const sx = wrap(c.p0 + turned, TURN) * perRad;
-          const sw = (c.p1 - c.p0) * perRad;
-          const a = (c.x1 - c.x0) / sw;
-          const b = (c.y1 - c.y0) / sw;
-          ctx.setTransform(a, b, 0, bandH / th, c.x0 - a * sx, c.y0 - b * sx);
-          ctx.drawImage(wear, sx, 0, sw, th, sx, 0, sw, th);
-        }
+      for (let i = 0; i < cols.length; i++) {
+        const c = cols[i];
+        const sx = wrap(c.p0 + angle, TURN) * perRad;
+        const sw = (c.p1 - c.p0) * perRad;
+        const a = (c.x1 - c.x0) / sw;
+        const b = (c.y1 - c.y0) / sw;
+        ctx.setTransform(a, b, 0, bandH / th, c.x0 - a * sx, c.y0 - b * sx);
+        ctx.drawImage(wear, sx, 0, sw, th, sx, 0, sw, th);
       }
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = 1;
@@ -217,6 +214,9 @@ function setupPuckSide(zone, button) {
 
   function init() {
     if (ready || !body.naturalWidth) return;
+    src = document.createElement('canvas');
+    src.width = src.height = S;
+    src.getContext('2d').drawImage(body, 0, 0, S, S);
     ready = true;
     prepareWear();
     try {

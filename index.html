@@ -51,16 +51,19 @@
         </div>
 
         <!-- Шайба с логотипом. Въезжает по льду при открытии сайта и при нажатии.
-             Сложена из двух картинок: корпус + верхняя грань с логотипом (она вращается). -->
+             Сложена из слоёв: корпус, холст с вращающимся бортиком и верхняя грань с логотипом. -->
         <div class="puck-zone">
           <span class="puck-trail" aria-hidden="true"><i></i></span>
           <div class="puck-slide">
             <span class="puck-shadow" aria-hidden="true"></span>
             <button class="puck" id="puck" type="button" aria-label="Запустить шайбу ещё раз">
               <span class="puck__layers">
-                <img src="images/puck-body.webp?v=20261116-0002" alt="" class="puck__body" width="960" height="960">
+                <img src="images/puck-body.webp?v=20261116-0004" alt="" class="puck__body" width="960" height="960">
+                <!-- холст: на нём script.js рисует корпус с «провёрнутым» бортиком и потёртостями -->
+                <canvas class="puck__side" width="960" height="960" aria-hidden="true"></canvas>
+                <img src="images/puck-side.webp?v=20261116-0004" alt="" class="puck__side-src" hidden>
                 <span class="puck__face">
-                  <img src="images/puck-face.webp?v=20261116-0002" alt="КЛЮШКИ RUSSIA" class="puck__marks" width="960" height="960">
+                  <img src="images/puck-face.webp?v=20261116-0004" alt="КЛЮШКИ RUSSIA" class="puck__marks" width="960" height="960">
                 </span>
               </span>
             </button>

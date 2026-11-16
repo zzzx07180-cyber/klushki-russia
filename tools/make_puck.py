@@ -3,14 +3,16 @@
 Делает картинки шайбы для главной страницы — настоящий 3D-рендер в Blender.
 
 Чёрная резиновая шайба со скруглённой кромкой, рифлёным («в ромбик») бортиком,
-логотипом (images/logo.png), мелкими царапинами и потёртостями. Получаются ДВЕ картинки:
+логотипом (images/logo.png), мелкими царапинами и потёртостями. Получаются ТРИ картинки:
 
-  images/puck-body.webp — корпус шайбы под наклоном (резина, бортик, свет), без логотипа;
-  images/puck-face.webp — только логотип и царапины («развёрнуто» в ровный круг), остальное прозрачно.
+  images/puck-body.webp — корпус шайбы под наклоном: чистая резина, рифлёный бортик, свет;
+  images/puck-face.webp — логотип, царапины и потёртости у края грани («развёрнуто» в ровный круг);
+  images/puck-side.webp — потёртости бортика «в развёртке» (длинная полоска на все 360°).
 
-Зачем две: на сайте вторая картинка лежит поверх первой и ВРАЩАЕТСЯ, когда шайба скользит
-по льду. Так шайба крутится вокруг своей оси по-настоящему: логотип поворачивается,
-а бортик и свет остаются на месте.
+Зачем три: на сайте шайба крутится вокруг своей оси, когда скользит по льду. Свет при этом
+должен оставаться на месте, а всё, что «нарисовано» на шайбе, — ехать по кругу. Поэтому
+корпус неподвижен, картинка с логотипом вращается поверх него, а полоска с потёртостями
+«прокручивается» по бортику (это делает script.js).
 
 Фон прозрачный, браузеру ничего не нужно обрезать. Формат WebP: выглядит как PNG,
 но весит в несколько раз меньше (важно для телефонов).
@@ -41,6 +43,7 @@ ROOT = os.path.dirname(_HERE)
 LOGO_PATH = os.path.join(ROOT, 'images', 'logo.png')
 OUT_BODY = os.path.join(ROOT, 'images', 'puck-body.webp')   # корпус (неподвижная картинка)
 OUT_FACE = os.path.join(ROOT, 'images', 'puck-face.webp')   # логотип и царапины (вращается)
+OUT_SIDE = os.path.join(ROOT, 'images', 'puck-side.webp')   # потёртости бортика в развёртке
 
 SIZE = 960            # размер картинки в пикселях (квадрат)
 SAMPLES = 500         # качество рендера (больше — чище, но дольше)
@@ -64,6 +67,8 @@ SEGMENTS = 1392       # детализация сетки по кругу (кр�
 SIDE_ROWS = 132       # детализация бортика по высоте
 ARC = 14              # детализация скругления
 TEX = 2048            # размер карты царапин
+SIDE_TEX = (2048, 128)   # размер развёртки бортика (ширина — полный оборот, высота — рифлёная полоса)
+# ⚠️ H, BEVEL и KNURL_COUNT продублированы в script.js (блок «Бортик шайбы») — менять в обоих местах.
 # ─────────────────────────────────────────────────────────────────────
 
 
@@ -204,6 +209,66 @@ def make_scratch_map():
     return img
 
 
+# ───────────────────────────── потёртости бортика ─────────────────────────────
+def make_side_marks():
+    """Потёртости бортика «в развёртке»: полоска, где ширина — полный оборот шайбы (360°),
+    а высота — рифлёная полоса бортика. Чёрное — целая резина, светлое — потёртость
+    (на сайте светлые места «высветляют» бортик под собой). Края по ширине стыкуются
+    без шва, чтобы полоску можно было прокручивать по кругу бесконечно."""
+    rng = np.random.default_rng(SEED + 1)
+    w, h = SIDE_TEX
+    a = np.zeros((h, w), np.float32)
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+
+    def blob(cx, cy, sx, sy, amp, angle=0.0):
+        dx = (xx - cx + w / 2) % w - w / 2            # расстояние «по кругу» — без шва на стыке
+        dy = yy - cy
+        ca, sa = math.cos(angle), math.sin(angle)
+        u, v = dx * ca + dy * sa, -dx * sa + dy * ca
+        return amp * np.exp(-(u / sx) ** 2 - (v / sy) ** 2)
+
+    def add(layer):
+        np.maximum(a, layer, out=a)
+
+    # 1. Большие мягкие зоны, где верхушки ромбиков вытерлись
+    for _ in range(20):
+        add(blob(rng.uniform(0, w), rng.uniform(0.1, 0.9) * h, rng.uniform(25, 110),
+                 rng.uniform(10, 34), rng.uniform(0.14, 0.34)))
+    # 2. Заметные светлые ссадины (удары о борт и клюшки) — по ним глаз и видит вращение
+    for _ in range(10):
+        add(blob(rng.uniform(0, w), rng.uniform(0.18, 0.82) * h, rng.uniform(22, 70),
+                 rng.uniform(2.4, 5.2), rng.uniform(0.6, 0.95), rng.normal(0, 0.3)))
+    # 3. Пучки тонких царапин
+    for _ in range(7):
+        cx, cy, ang = rng.uniform(0, w), rng.uniform(0.2, 0.8) * h, rng.normal(0, 0.25)
+        for _ in range(14):
+            add(blob(cx + rng.normal(0, 30), cy + rng.normal(0, 12), rng.uniform(10, 34),
+                     rng.uniform(0.9, 1.6), rng.uniform(0.3, 0.65), ang + rng.normal(0, 0.08)))
+    # 4. Короткие вертикальные зарубки
+    for _ in range(6):
+        add(blob(rng.uniform(0, w), rng.uniform(0.25, 0.75) * h, rng.uniform(1.6, 3.0),
+                 rng.uniform(8, 20), rng.uniform(0.6, 0.9), rng.normal(0, 0.2)))
+
+    # «Крупинки»: потёртость не сплошная, а по отдельным верхушкам рифления
+    speck = np.kron(rng.random((h // 2, w // 2)).astype(np.float32), np.ones((2, 2), np.float32))
+    a *= 0.55 + 0.45 * speck
+    # у верхнего и нижнего края полосы рифление кончается — там потёртости сходят на нет
+    a *= np.clip(np.minimum(yy, h - 1 - yy) / (0.12 * h), 0, 1)
+    a = np.clip(a * SCRATCHES, 0, 1)
+
+    old = bpy.data.images.get('puck_side')
+    if old:
+        bpy.data.images.remove(old)
+    img = bpy.data.images.new('puck_side', w, h, alpha=False)
+    a = a[::-1]                                                # у Blender нижняя строка — первая
+    px = np.ones((h, w, 4), np.float32)
+    px[..., 0], px[..., 1], px[..., 2] = 0.62 * a, 0.66 * a, 0.72 * a    # цвет стёртой резины
+    img.pixels.foreach_set(px.ravel())
+    img.update()
+    img.save_render(OUT_SIDE, scene=bpy.context.scene)
+    print('Готово:', OUT_SIDE, round(os.path.getsize(OUT_SIDE) / 1024), 'КБ')
+
+
 # ───────────────────────────── материал ─────────────────────────────
 class Nodes:
     """Маленький помощник, чтобы собирать «рецепт» материала короткими строчками."""
@@ -342,9 +407,12 @@ def build_material(logo, scratches):
     cloud = n.noise(pos, 2.6, 5.0, 0.6)
     wear_n = n.noise(pos, 8.0, 7.0, 0.65)
     chip_n = n.noise(pos, 46.0, 2.0, 0.5)
-    edge_wear = n.m('MULTIPLY', edge, n.smooth(wear_n, 0.42, 0.68))
-    chips = n.m('MULTIPLY', edge, n.smooth(chip_n, 0.71, 0.76))
-    side_wear = n.m('MULTIPLY', n.m('MULTIPLY', band, knurl), n.smooth(wear_n, 0.4, 0.72))
+    # Потёртости тоже выключаются вместе с PUCK_MARKS: в картинке корпуса их быть не должно,
+    # иначе при вращении они «стояли бы на месте» и выдавали, что корпус не крутится.
+    worn = sw_marks.outputs[0]
+    edge_wear = n.m('MULTIPLY', n.m('MULTIPLY', edge, n.smooth(wear_n, 0.42, 0.68)), worn)
+    chips = n.m('MULTIPLY', n.m('MULTIPLY', edge, n.smooth(chip_n, 0.71, 0.76)), worn)
+    side_wear = n.m('MULTIPLY', n.m('MULTIPLY', n.m('MULTIPLY', band, knurl), n.smooth(wear_n, 0.4, 0.72)), worn)
 
     # --- царапины на верхней грани ---
     uv_s = n.new('ShaderNodeCombineXYZ')
@@ -397,6 +465,11 @@ def build_material(logo, scratches):
 
     # --- покрытие: для картинки «только логотип и царапины» резина становится прозрачной ---
     cover = n.m('MAXIMUM', n.smooth(ink, 0.0, 0.2), n.smooth(scratch, 0.0, 0.12))
+    # ...плюс потёртости у края грани — но ТОЛЬКО на плоской части. На самом скруглении свет
+    # сильно меняется по кругу (где-то яркий отсвет, где-то тень), и потёртость, «сфотографированная»
+    # в тени, при повороте приехала бы на светлое место тёмным пятном.
+    top_edge = n.m('MULTIPLY', n.m('ADD', n.m('MULTIPLY', edge_wear, 0.9), chips, clamp=True), on_top)
+    cover = n.m('MAXIMUM', cover, n.smooth(top_edge, 0.0, 0.35))
     n.put(surface.inputs[0], n.m('MAXIMUM', sw_solid.outputs[0], cover))
 
     for attr_owner in (mat, getattr(mat, 'cycles', None)):
@@ -582,7 +655,8 @@ def build_scene():
 
 
 def set_mode(mode):
-    """'full' — целая шайба, 'body' — без логотипа и царапин, 'face' — только логотип и царапины."""
+    """'full' — целая шайба, 'body' — чистый корпус (без логотипа, царапин и потёртостей),
+    'face' — только логотип, царапины и потёртая кромка."""
     nodes = bpy.data.objects['Puck'].data.materials[0].node_tree.nodes
     nodes['PUCK_MARKS'].outputs[0].default_value = 0.0 if mode == 'body' else 1.0
     nodes['PUCK_SOLID'].outputs[0].default_value = 0.0 if mode == 'face' else 1.0
@@ -600,10 +674,34 @@ def render_one(mode, camera, path):
     print('Готово:', path, round(os.path.getsize(path) / 1024), 'КБ')
 
 
+def save_face(raw_png):
+    """Сохраняет картинку грани в WebP, округлив прозрачность до 16 ступеней.
+    На глаз разницы нет, а файл получается почти вдвое легче."""
+    img = bpy.data.images.load(raw_png)
+    w, h = img.size
+    px = np.empty(w * h * 4, np.float32)
+    img.pixels.foreach_get(px)
+    px = px.reshape(-1, 4)
+    alpha = px[:, 3]
+    rounded = np.round(alpha * 255 / 16) * 16 / 255
+    rounded[alpha < 10 / 255] = 0
+    px[:, 3] = np.clip(rounded, 0, 1)
+    img.pixels.foreach_set(px.ravel())
+    img.update()
+    img.save_render(OUT_FACE, scene=bpy.context.scene)
+    bpy.data.images.remove(img)
+    print('Готово:', OUT_FACE, round(os.path.getsize(OUT_FACE) / 1024), 'КБ')
+
+
 def render():
     scene = bpy.context.scene
-    render_one('face', 'PuckFaceCamera', OUT_FACE)
+    raw = os.path.join(bpy.app.tempdir, 'puck_face_raw.png')
+    scene.render.image_settings.file_format = 'PNG'       # грань сначала без потерь...
+    render_one('face', 'PuckFaceCamera', raw)
+    scene.render.image_settings.file_format = 'WEBP'
+    save_face(raw)                                        # ...потом облегчаем и сохраняем
     render_one('body', 'PuckCamera', OUT_BODY)
+    make_side_marks()
     set_mode('full')                                # в окне Blender остаётся целая шайба
     print('Числа для style.css (блок .puck-zone):')
     for name, value in face_geometry(scene).items():

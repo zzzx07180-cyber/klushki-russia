@@ -48,6 +48,8 @@ OUT_SIDE = os.path.join(ROOT, 'images', 'puck-side.webp')   # потёртост
 SIZE = 960            # размер картинки в пикселях (квадрат)
 SAMPLES = 500         # качество рендера (больше — чище, но дольше)
 WEBP_QUALITY = 85     # качество сжатия: 100 — без потерь (тяжёлая); 85 — на глаз не отличить от 90, а файлы на ~15% легче
+BODY_BRIGHTNESS = 0.85   # яркость корпуса (резины): 1 — как отрендерил Blender, меньше — темнее.
+                         # 0.85 — по просьбе владельца 2026-11-16 («чуть-чуть потемнее»); логотип не трогаем
 TILT = 22             # наклон в градусах: 0 — шайба смотрит прямо на зрителя, больше — виден бортик
 MARGIN = 0.012        # поля вокруг шайбы (доля от размера картинки)
 
@@ -697,6 +699,21 @@ def save_face(raw_png):
     print('Готово:', OUT_FACE, round(os.path.getsize(OUT_FACE) / 1024), 'КБ')
 
 
+def save_body(raw_png):
+    """Сохраняет корпус в WebP, сделав его темнее на BODY_BRIGHTNESS (прозрачность не меняется)."""
+    img = bpy.data.images.load(raw_png)
+    w, h = img.size
+    px = np.empty(w * h * 4, np.float32)
+    img.pixels.foreach_get(px)
+    px = px.reshape(-1, 4)
+    px[:, :3] *= BODY_BRIGHTNESS
+    img.pixels.foreach_set(px.ravel())
+    img.update()
+    img.save_render(OUT_BODY, scene=bpy.context.scene)
+    bpy.data.images.remove(img)
+    print('Готово:', OUT_BODY, round(os.path.getsize(OUT_BODY) / 1024), 'КБ')
+
+
 def render():
     scene = bpy.context.scene
     raw = os.path.join(bpy.app.tempdir, 'puck_face_raw.png')
@@ -704,7 +721,11 @@ def render():
     render_one('face', 'PuckFaceCamera', raw)
     scene.render.image_settings.file_format = 'WEBP'
     save_face(raw)                                        # ...потом облегчаем и сохраняем
-    render_one('body', 'PuckCamera', OUT_BODY)
+    raw_body = os.path.join(bpy.app.tempdir, 'puck_body_raw.png')
+    scene.render.image_settings.file_format = 'PNG'       # корпус тоже сначала без потерь...
+    render_one('body', 'PuckCamera', raw_body)
+    scene.render.image_settings.file_format = 'WEBP'
+    save_body(raw_body)                                   # ...потом затемняем и сохраняем
     make_side_marks()
     set_mode('full')                                # в окне Blender остаётся целая шайба
     print('Числа для style.css (блок .puck-zone):')

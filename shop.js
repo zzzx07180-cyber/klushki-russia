@@ -13,13 +13,15 @@ window.Shop = (function () {
     { id: 'gloves',  label: 'Краги',       one: 'Краги',       icon: '🧤' },
     { id: 'helmets', label: 'Шлемы',       one: 'Шлем',        icon: '⛑️' }
   ];
+  // Реплик в каталоге нет — владелец убрал их (2026-11-16). Чтобы вернуть, нужно добавить сюда
+  // { id: 'replica', label: 'Реплики' }, в TYPE_BADGE — replica: 'Реплика',
+  // и включить SHOW_REPLICAS в tools/import_table.py.
   const TYPES = [
     { id: 'all',      label: 'Все клюшки' },
     { id: 'original', label: 'Оригинальные' },
-    { id: 'replica',  label: 'Реплики' },
     { id: 'restored', label: 'Восстановленные' }
   ];
-  const TYPE_BADGE = { original: 'Оригинал', replica: 'Реплика', restored: 'Восстановленная' };
+  const TYPE_BADGE = { original: 'Оригинал', restored: 'Восстановленная' };
   // Место перелома у восстановленных клюшек
   const REPAIRS = [
     { id: 'blade', label: 'Перо' },

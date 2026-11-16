@@ -611,7 +611,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   transform: skewX(-12deg);
 }
 .badge--original { background: var(--accent); }
-.badge--replica  { background: #4b5a6e; }
 .badge--restored { background: #0f8a6a; }
 
 .product__body { display: flex; flex-direction: column; flex: 1; padding: 16px 18px 18px; }

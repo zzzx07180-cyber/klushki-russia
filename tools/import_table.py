@@ -9,6 +9,7 @@
 Ожидаемый вид таблицы (первый лист, заголовки в 1-й строке):
   Столбцы A–H — ВОССТАНОВЛЕННЫЕ клюшки: №, Бренд, Модель, Хват, Загиб, Жесткость, Цена, Пометки
   Столбцы L–S — РЕПЛИКИ:                  №, Бренд, Модель, Хват, Загиб, Жесткость, Цена, Пометки
+                (на сайт сейчас НЕ попадают — см. SHOW_REPLICAS ниже)
   Столбцы U–X — ПРОЧЕЕ:                   №, Бренд + что это (напр. «Bauer Краги»), Размер, Цена
 
 Правила разбора:
@@ -30,6 +31,10 @@ from pathlib import Path
 
 NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 OUT = Path(__file__).resolve().parent.parent / "data" / "products.js"
+
+# Реплики (столбцы L–S) на сайт не выгружаем — владелец убрал их из каталога (2026-11-16).
+# Чтобы вернуть: поставить True и запустить импорт заново.
+SHOW_REPLICAS = False
 
 # Расшифровка сокращённых цветов в названиях моделей: FlyLite(оранж) → FlyLite (оранжевая)
 COLORS = {
@@ -168,8 +173,9 @@ def main():
     for r in range(2, last + 1):
         p = stick(cells, r, ("A", "B", "C", "D", "E", "F", "G", "H"), "restored", 1001 + len(restored))
         if p: restored.append(p)
-        p = stick(cells, r, ("L", "M", "N", "O", "P", "Q", "R", "S"), "replica", 2001 + len(replicas))
-        if p: replicas.append(p)
+        if SHOW_REPLICAS:
+            p = stick(cells, r, ("L", "M", "N", "O", "P", "Q", "R", "S"), "replica", 2001 + len(replicas))
+            if p: replicas.append(p)
         p = other(cells, r, 3001 + len(others))
         if p: others.append(p)
 
@@ -188,7 +194,8 @@ def main():
     body = "window.PRODUCTS = " + json.dumps(products, ensure_ascii=False, indent=2) + ";\n"
     OUT.write_text(header + body, encoding="utf-8")
     print(f"Готово: {OUT}")
-    print(f"  восстановленные: {len(restored)}, реплики: {len(replicas)}, прочее: {len(others)}, всего: {len(products)}")
+    replica_note = len(replicas) if SHOW_REPLICAS else "пропущены (SHOW_REPLICAS = False)"
+    print(f"  восстановленные: {len(restored)}, реплики: {replica_note}, прочее: {len(others)}, всего: {len(products)}")
     no_price = [f"{p['brand']} {p['name']} (№{p['sku']})" for p in products if p["price"] is None]
     if no_price:
         print("  без цены (будет «по запросу»):", "; ".join(no_price))

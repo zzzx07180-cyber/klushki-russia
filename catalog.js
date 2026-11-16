@@ -29,7 +29,7 @@
         <div class="chips" id="fRepair"></div>
       </div>
 
-      <div class="filters__row">
+      <div class="filters__row" id="fRow">
         <div class="filters__group">
           <p class="panel__label">Бренд</p>
           <div class="chips chips--round" id="fBrand"></div>
@@ -63,14 +63,17 @@
     <div class="products" id="products"></div>
 
     <div class="empty" id="empty" hidden>
-      <p class="empty__title">Ничего не нашлось</p>
-      <p>Попробуй убрать часть фильтров — или напиши нам, найдём под заказ.</p>
+      <p class="empty__title" id="emptyTitle">Ничего не нашлось</p>
+      <p id="emptyText">Попробуй убрать часть фильтров — или напиши нам, найдём под заказ.</p>
       <a href="https://t.me/" class="btn" target="_blank" rel="noopener">Написать в Telegram</a>
     </div>`;
 
   // Показываем только разделы и типы клюшек, в которых реально есть товары —
   // чтобы покупатель не попадал в пустой раздел. Появится товар — появится и кнопка.
-  const CATS = CATEGORIES.filter((c) => PRODUCTS.some((p) => p.category === c.id));
+  // Исключение — ALWAYS_SHOWN: эти разделы видны всегда; пока товаров нет, внутри
+  // показывается «Подберём под заказ» и кнопка Telegram.
+  const ALWAYS_SHOWN = ['skates'];
+  const CATS = CATEGORIES.filter((c) => ALWAYS_SHOWN.includes(c.id) || PRODUCTS.some((p) => p.category === c.id));
   const STICK_TYPES = TYPES.filter((t) => t.id === 'all' || PRODUCTS.some((p) => p.category === 'sticks' && p.type === t.id));
 
   // ----- Текущие фильтры -----
@@ -96,12 +99,15 @@
     repairBox: $('fRepairBox'), repair: $('fRepair'),
     brand: $('fBrand'), handBox: $('fHandBox'), hand: $('fHand'),
     stock: $('fStock'), sort: $('fSort'),
-    found: $('found'), products: $('products'), empty: $('empty')
+    found: $('found'), products: $('products'), empty: $('empty'),
+    row: $('fRow'), emptyTitle: $('emptyTitle'), emptyText: $('emptyText')
   };
 
   const unique = (arr) => [...new Set(arr)];
   const isSticks = () => state.cat === 'sticks';
   const isRestored = () => isSticks() && state.type === 'restored';
+  // В разделе пока нет ни одного товара (например, «Коньки»)
+  const isEmptyCat = () => !PRODUCTS.some((p) => p.category === state.cat);
 
   // ----- Кнопки фильтров -----
   function renderButtons(container, items, current, onPick, cls) {
@@ -138,6 +144,9 @@
     if (isRestored()) {
       renderButtons(el.repair, REPAIRS, state.repair, toggle('repair'), 'chip');
     }
+
+    // В пустом разделе фильтры (бренд, наличие, сортировка) не нужны
+    el.row.hidden = isEmptyCat();
 
     // Бренды и хваты — только те, что реально есть в выбранном разделе
     const inCat = PRODUCTS.filter((p) => p.category === state.cat);
@@ -211,7 +220,17 @@
     const list = filtered();
     el.products.innerHTML = list.map(cardHTML).join('');
     el.empty.hidden = list.length > 0;
+    el.found.hidden = isEmptyCat();
     el.found.textContent = 'Найдено: ' + list.length;
+    if (isEmptyCat()) {
+      const name = category(state.cat).label;
+      el.emptyTitle.textContent = name + ' — под заказ';
+      el.emptyText.textContent = 'Сейчас в наличии нет, но подберём под твой размер и уровень игры. ' +
+        'Напиши нам в Telegram — расскажем, что есть и сколько стоит.';
+    } else {
+      el.emptyTitle.textContent = 'Ничего не нашлось';
+      el.emptyText.textContent = 'Попробуй убрать часть фильтров — или напиши нам, найдём под заказ.';
+    }
   }
 
   // ----- Адрес страницы отражает фильтры -----

@@ -246,27 +246,25 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 /* --- Анимация «шайба въезжает по льду» ---
    Шайба выезжает из-за правого края, скользит по прямой и тормозит, как от трения о лёд
-   (равномерное замедление — кривая --ice-friction). При этом она крутится вокруг своей оси
-   и докручивается ещё чуть-чуть после остановки — как настоящая. За ней на льду остаётся
-   след, который потом тает.
+   (равномерное замедление — кривая --ice-friction). При этом она крутится вокруг своей оси.
+   Едет и крутится шайба одно и то же время (--slide-time), поэтому останавливается
+   и перестаёт крутиться в один и тот же момент. За ней на льду остаётся след, который потом тает.
    Можно менять:
      --slide-x / --slide-y — откуда выезжает (в размерах шайбы); если менять, то поправить
                              и угол с длиной у .puck-trail;
-     --slide-time          — сколько секунд едет;
-     --spin-time           — сколько секунд крутится;
+     --slide-time          — сколько секунд едет и крутится;
      --spin                — на сколько градусов успевает повернуться (540 = полтора оборота). */
 .puck-zone {
   --slide-x: 330%;
   --slide-y: -70%;
   --slide-time: 1.7s;
-  --spin-time: 2.5s;
   --spin: -540deg;
   --ice-friction: cubic-bezier(.333, .667, .667, 1);
 }
 .puck-zone.is-waiting .puck-slide { opacity: 0; }   /* пока картинки грузятся, шайбу не показываем */
 
 .puck-zone.is-flying .puck-slide  { animation: puck-slide var(--slide-time) var(--ice-friction) both; }
-.puck-zone.is-flying .puck__marks { animation: puck-spin var(--spin-time) var(--ice-friction) both; }
+.puck-zone.is-flying .puck__marks { animation: puck-spin var(--slide-time) var(--ice-friction) both; }
 /* след: растёт ровно вместе с шайбой, а когда она остановилась — тает */
 .puck-zone.is-flying .puck-trail i {
   animation: puck-trail-grow var(--slide-time) var(--ice-friction) both,

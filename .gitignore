@@ -2,6 +2,17 @@
 .claude/settings.local.json
 .claude/launch.json
 
+# Отчёты команды проверки (/proverka) — только на этом компьютере:
+# репозиторий публичный, а в отчётах о безопасности могут быть описаны незакрытые дыры
+.claude/team/
+
+# Агенты и команда /proverka — тоже только на этом компьютере (владелец решил не публиковать)
+.claude/agents/
+.claude/skills/
+
+# Личные инструкции для Claude на этом компьютере (описание команды проверки)
+CLAUDE.local.md
+
 # Системный мусор Windows / macOS
 Thumbs.db
 Desktop.ini

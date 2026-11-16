@@ -145,18 +145,27 @@ function setupPuckSide(zone, button) {
     'const float EDGE = ' + EDGE.toFixed(7) + ';',
     'const float SRC_EDGE = ' + SRC_EDGE.toFixed(7) + ';',
     'const float TURN = ' + TURN.toFixed(7) + ';',
+    'const float PITCH = ' + pitch.toFixed(7) + ';',
     'float topOf(float phi) { return center.y + radius * squash * cos(phi) + bevel; }',
     'void main() {',
     '  vec2 from = p;',                                  // откуда с картинки корпуса брать цвет
+    '  vec2 from2 = p;',                                 // второе место — на ромбик левее (см. ниже)
+    '  float k = 0.0;',                                  // сколько брать со второго места
     '  vec3 light = vec3(0.0);',                         // свет от потёртостей
     '  float dx = (p.x - center.x) / radius;',
     '  if (abs(dx) < sin(EDGE)) {',
     '    float phi = asin(dx);',                         // под каким углом к зрителю эта точка бортика
     '    float top = topOf(phi);',
     '    if (p.y >= top - 1.0 && p.y <= top + bandH + below + 1.0) {',
-    // 1) рифление: берём цвет «сбоку», на долю ромбика правее
-    '      float side = min(phi + shift, SRC_EDGE);',
+    // 1) рифление: берём цвет «сбоку», на долю ромбика правее. Когда сдвиг дорастает до целого
+    //    ромбика, он начинается с нуля — ромбики стыкуются, а свет и тень внизу бортика нет, и
+    //    в конце въезда это было видно как мигание. Поэтому смешиваем с тем же местом на ромбик
+    //    левее: при сдвиге 0 и при сдвиге в целый ромбик кадр один и тот же — скачка нет.
+    '      float side = clamp(phi + shift, -SRC_EDGE, SRC_EDGE);',
+    '      float side2 = clamp(phi + shift - PITCH, -SRC_EDGE, SRC_EDGE);',
     '      from = vec2(center.x + radius * sin(side), p.y + topOf(side) - top);',
+    '      from2 = vec2(center.x + radius * sin(side2), p.y + topOf(side2) - top);',
+    '      k = shift / PITCH;',
     // 2) потёртости: едут по бортику вместе с ним
     '      float v = (p.y - top) / bandH;',
     '      if (v >= 0.0 && v <= 1.0) {',
@@ -164,7 +173,7 @@ function setupPuckSide(zone, button) {
     '      }',
     '    }',
     '  }',
-    '  vec4 color = texture2D(body, from / size);',
+    '  vec4 color = mix(texture2D(body, from / size), texture2D(body, from2 / size), k);',
     '  color.rgb = min(color.rgb + light * color.a, vec3(1.0));',
     // 3) логотип: круг, повёрнутый на angle и сжатый в овал (шайба наклонена)
     '  vec2 f = vec2(p.x - center.x, (p.y - center.y) / squash);',
@@ -360,6 +369,28 @@ function setupPuckSide(zone, button) {
     src.width = src.height = S;
     src.getContext('2d').drawImage(body, 0, 0, S, S);
 
+    // Полоски бортика, взятые с картинки корпуса со сдвигом sh (в радианах; может быть и меньше нуля)
+    function strips(sh, alpha) {
+      if (alpha < 0.002) return;
+      ctx.globalAlpha = alpha;
+      for (let i = 0; i < cols.length; i++) {
+        const c = cols[i];
+        const s0 = Math.max(-SRC_EDGE, Math.min(c.p0 + sh, SRC_EDGE));
+        const s1 = Math.max(-SRC_EDGE, Math.min(c.p1 + sh, SRC_EDGE));
+        const sx = xOf(s0);
+        const sw = xOf(s1) - sx;
+        if (sw < 0.25) continue;
+        const sy0 = topOf(s0);
+        const sy1 = topOf(s1);
+        const a = (c.x1 - c.x0) / sw;
+        const b = ((c.y1 - sy1) - (c.y0 - sy0)) / sw;
+        ctx.setTransform(a, b, 0, 1, c.x0 - a * sx, (c.y0 - sy0) - b * sx);
+        const top = Math.max(0, Math.min(sy0, sy1) - 1);
+        const h = Math.min(S - top, Math.abs(sy1 - sy0) + bandH + below + 2);   // не выходим за край картинки (Safari тогда ничего не рисует)
+        ctx.drawImage(src, sx, top, sw, h, sx, top, sw, h);
+      }
+    }
+
     // Рисует корпус, повёрнутый на angle (в радианах). Всегда ЧЁТКО, без «смаза»:
     // раньше при быстром вращении рифление намеренно размывалось, но на iPhone (где кадров
     // меньше) бортик превращался в мутное пятно — владелец попросил убрать.
@@ -371,25 +402,15 @@ function setupPuckSide(zone, button) {
       ctx.drawImage(src, 0, 0, S, S);
 
       // 1) Рифление. Узор повторяется каждый ромбик, поэтому важен только сдвиг внутри ромбика.
+      //    Как и у видеочипа, смешиваем два места — на долю ромбика правее и на ромбик левее, —
+      //    чтобы при переходе сдвига через целый ромбик не было скачка (мигания внизу бортика).
+      //    Полоски рисуем и у стоящей шайбы: они совпадают с целой картинкой не до точки, и если
+      //    на последнем кадре их пропустить, бортик тоже «мигнёт».
       const shift = wrap(angle, pitch);
-      if (shift > 1e-4) {                                  // сдвига нет — корпус уже нарисован как надо
-        for (let i = 0; i < cols.length; i++) {
-          const c = cols[i];
-          const s0 = Math.min(c.p0 + shift, SRC_EDGE);
-          const s1 = Math.min(c.p1 + shift, SRC_EDGE);
-          const sx = xOf(s0);
-          const sw = xOf(s1) - sx;
-          if (sw < 0.25) continue;
-          const sy0 = topOf(s0);
-          const sy1 = topOf(s1);
-          const a = (c.x1 - c.x0) / sw;
-          const b = ((c.y1 - sy1) - (c.y0 - sy0)) / sw;
-          ctx.setTransform(a, b, 0, 1, c.x0 - a * sx, (c.y0 - sy0) - b * sx);
-          const top = Math.max(0, Math.min(sy0, sy1) - 1);
-          const h = Math.min(S - top, Math.abs(sy1 - sy0) + bandH + below + 2);   // не выходим за край картинки (Safari тогда ничего не рисует)
-          ctx.drawImage(src, sx, top, sw, h, sx, top, sw, h);
-        }
-      }
+      const k = shift / pitch;
+      if (k > 0.002) strips(shift - pitch, 1);             // место на ромбик левее…
+      strips(shift, k > 0.002 ? 1 - k : 1);                // …и поверх, с долей прозрачности, — на долю правее
+      ctx.globalAlpha = 1;
 
       // 2) Потёртости: едут по бортику вместе с ним
       if (wear) {

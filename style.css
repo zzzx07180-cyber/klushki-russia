@@ -1045,6 +1045,34 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   .float-chat__label { display: none; }
 }
 
+/* ===== Фильтры каталога на телефоне — ровной сеткой =====
+   Кнопки одной ширины стоят столбцами, без коротких «хвостов» в последней строке. */
+@media (max-width: 600px) {
+  /* Разделы — по два в столбце: слева клюшки и коньки, справа налокотники и краги.
+     Сколько строк — считает catalog.js (--rows), чтобы новый раздел встал в ту же сетку. */
+  .tabs {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(var(--rows, 2), auto);
+    grid-auto-columns: 1fr;
+    gap: 8px 10px;
+  }
+  .tab { padding: 10px 8px; text-align: center; }
+
+  /* Бренды и хват — три равные колонки; хват встаёт ровно под брендами */
+  .filters__group { flex: 1 1 100%; }
+  .chips--grid { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .chips--round.chips--grid .chip { padding: 9px 4px; text-align: center; }
+
+  /* Тип клюшки и место перелома — две равные кнопки в ряд */
+  .panel__sub .chips { display: grid; grid-template-columns: 1fr 1fr; }
+  .panel__sub .chip { padding: 9px 4px; text-align: center; letter-spacing: .5px; }
+}
+/* совсем узкие телефоны (Android 360 px): «Восстановленные» чуть мельче, чтобы влезло в половину */
+@media (max-width: 380px) {
+  .panel__sub .chip { font-size: 13px; }
+}
+
 @media (max-width: 480px) {
   /* каталог на телефоне: по 2 товара в ряд, всё компактнее */
   .products { grid-template-columns: 1fr 1fr; gap: 10px; }

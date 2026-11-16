@@ -32,12 +32,12 @@
       <div class="filters__row" id="fRow">
         <div class="filters__group">
           <p class="panel__label">Бренд</p>
-          <div class="chips chips--round" id="fBrand"></div>
+          <div class="chips chips--round chips--grid" id="fBrand"></div>
         </div>
 
         <div class="filters__group" id="fHandBox">
           <p class="panel__label">Хват</p>
-          <div class="chips chips--round" id="fHand"></div>
+          <div class="chips chips--round chips--grid" id="fHand"></div>
         </div>
 
         <div class="filters__right">
@@ -111,6 +111,8 @@
     row: $('fRow'), emptyTitle: $('emptyTitle'), emptyText: $('emptyText'),
     reset: $('fReset'), resetEmpty: $('fResetEmpty')
   };
+  // На телефоне разделы стоят сеткой по два в столбце (style.css) — сколько получится строк
+  el.category.style.setProperty('--rows', Math.ceil(CATS.length / 2));
 
   const unique = (arr) => [...new Set(arr)];
   const isSticks = () => state.cat === 'sticks';

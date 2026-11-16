@@ -15,7 +15,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 version = datetime.now().strftime("%Y%m%d-%H%M")
 
-# href="style.css" / src="data/products.js" / src="images/puck.png" (с меткой ?v=… или без) —
+# href="style.css" / src="data/products.js" / src="images/puck.webp" (с меткой ?v=… или без) —
 # только наши локальные файлы
 pattern = re.compile(r'((?:href|src)=")((?!https?:)[^"?]+\.(?:css|js|png|jpg|jpeg|webp|svg))(\?v=[^"]*)?(")')
 

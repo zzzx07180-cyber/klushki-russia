@@ -1,0 +1,532 @@
+# -*- coding: utf-8 -*-
+"""
+Делает картинку шайбы images/puck.webp — настоящий 3D-рендер в Blender.
+
+Что получается: чёрная резиновая шайба с логотипом (images/logo.png) на верхней грани,
+скруглённой кромкой, рифлёным («в ромбик») бортиком, мелкими царапинами и потёртостями.
+Фон прозрачный — на сайте это обычная картинка, браузеру ничего не нужно обрезать.
+Формат WebP: выглядит как PNG, но весит в несколько раз меньше (важно для телефонов).
+
+Запуск (из папки проекта), Blender откроется с окном и сам сохранит картинку:
+
+  "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Blender\\blender.exe" --python tools\\make_puck.py
+
+Что можно менять — в блоке «НАСТРОЙКИ» ниже (наклон, размер, сила царапин и т.п.).
+"""
+import math
+import os
+
+import bpy
+import numpy as np
+from mathutils import Vector
+from bpy_extras.object_utils import world_to_camera_view
+
+try:
+    _HERE = os.path.dirname(os.path.abspath(__file__))
+except NameError:                     # если код запущен не из файла
+    _HERE = os.path.join(os.getcwd(), 'tools')
+ROOT = os.path.dirname(_HERE)
+
+# ───────────────────────────── НАСТРОЙКИ ─────────────────────────────
+LOGO_PATH = os.path.join(ROOT, 'images', 'logo.png')
+OUT_PATH = os.path.join(ROOT, 'images', 'puck.webp')
+
+SIZE = 960            # размер картинки в пикселях (квадрат)
+SAMPLES = 500         # качество рендера (больше — чище, но дольше)
+WEBP_QUALITY = 90     # качество сжатия картинки: 100 — без потерь (тяжёлая), 90 — на глаз не отличить
+TILT = 30             # наклон камеры в градусах: 0 — строго сверху, 30 — виден бортик
+LENS = 190            # «объектив» камеры, мм (больше — меньше искажений перспективы)
+MARGIN = 0.012        # поля вокруг шайбы (доля от размера картинки)
+
+LOGO_SCALE = 1.08     # логотип чуть крупнее диаметра шайбы (как было на сайте)
+LOGO_GLOW = 0.75      # насколько логотип «светится» сам (0 — только отражённый свет)
+SCRATCHES = 1.0       # сила царапин: 0 — новая шайба, 1 — слегка поигранная
+SEED = 7              # другое число — другой рисунок царапин
+
+# Размеры настоящей шайбы: диаметр 76,2 мм, толщина 25,4 мм. Здесь радиус = 1.
+R = 1.0
+H = 2.0 / 3.0
+BEVEL = 0.05          # скругление кромки
+KNURL_COUNT = 116     # сколько «ромбиков» по окружности бортика
+KNURL_DEPTH = 0.016   # глубина рифления
+
+SEGMENTS = 1392       # детализация сетки по кругу (кратно KNURL_COUNT)
+SIDE_ROWS = 132       # детализация бортика по высоте
+ARC = 14              # детализация скругления
+TEX = 2048            # размер карты царапин
+# ─────────────────────────────────────────────────────────────────────
+
+
+# ───────────────────────────── сетка ─────────────────────────────
+def build_mesh():
+    """Шайба как тело вращения: крышка → скругление → бортик → скругление → дно."""
+    top = H / 2
+    flat = R - BEVEL
+    side = top - BEVEL
+    rings = [(0.35, top), (0.7, top), (flat - 0.02, top), (flat - 0.004, top), (flat, top)]
+    for i in range(1, ARC + 1):
+        a = math.radians(90 * i / ARC)
+        rings.append((flat + BEVEL * math.sin(a), side + BEVEL * math.cos(a)))
+    for i in range(1, SIDE_ROWS + 1):
+        rings.append((R, side - 2 * side * i / SIDE_ROWS))
+    for i in range(1, ARC + 1):
+        a = math.radians(90 * i / ARC)
+        rings.append((flat + BEVEL * math.cos(a), -side - BEVEL * math.sin(a)))
+    rings += [(flat - 0.004, -top), (flat - 0.02, -top), (0.7, -top), (0.35, -top)]
+
+    n = len(rings)
+    ang = np.linspace(0, 2 * math.pi, SEGMENTS, endpoint=False)
+    rr = np.array([r for r, _ in rings])[:, None]
+    zz = np.array([z for _, z in rings])[:, None]
+    co = np.empty((n, SEGMENTS, 3))
+    co[:, :, 0] = rr * np.cos(ang)
+    co[:, :, 1] = rr * np.sin(ang)
+    co[:, :, 2] = zz
+    verts = co.reshape(-1, 3).tolist() + [(0, 0, top), (0, 0, -top)]
+    c_top, c_bot = n * SEGMENTS, n * SEGMENTS + 1
+
+    j = np.arange(SEGMENTS)
+    j1 = (j + 1) % SEGMENTS
+    faces = []
+    for i in range(n - 1):
+        a, b = i * SEGMENTS, (i + 1) * SEGMENTS
+        faces += np.stack([a + j, b + j, b + j1, a + j1], 1).tolist()
+    last = (n - 1) * SEGMENTS
+    faces += np.stack([np.full(SEGMENTS, c_top), j, j1], 1).tolist()
+    faces += np.stack([np.full(SEGMENTS, c_bot), last + j1, last + j], 1).tolist()
+
+    mesh = bpy.data.meshes.new('Puck')
+    mesh.from_pydata(verts, [], faces)
+    mesh.polygons.foreach_set('use_smooth', [True] * len(mesh.polygons))
+    mesh.update()
+    return mesh
+
+
+# ───────────────────────────── царапины ─────────────────────────────
+def make_scratch_map():
+    """Чёрно-белая карта царапин для верхней грани: 0 — целая резина, 1 — глубокая царапина."""
+    rng = np.random.default_rng(SEED)
+    n = TEX
+    hm = np.zeros((n, n), np.float32)
+    c = rp = n / 2.0
+    limit = (R - BEVEL) * 0.985
+
+    def seg(x0, y0, x1, y1, w, d):
+        pad = w * 3 + 2
+        xa, xb = int(max(0, min(x0, x1) - pad)), int(min(n, max(x0, x1) + pad + 1))
+        ya, yb = int(max(0, min(y0, y1) - pad)), int(min(n, max(y0, y1) + pad + 1))
+        if xa >= xb or ya >= yb:
+            return
+        yy, xx = np.mgrid[ya:yb, xa:xb].astype(np.float32)
+        dx, dy = x1 - x0, y1 - y0
+        l2 = dx * dx + dy * dy or 1e-6
+        t = np.clip(((xx - x0) * dx + (yy - y0) * dy) / l2, 0, 1)
+        d2 = (xx - (x0 + t * dx)) ** 2 + (yy - (y0 + t * dy)) ** 2
+        view = hm[ya:yb, xa:xb]
+        np.maximum(view, d * np.exp(-d2 / (w * w)), out=view)
+
+    def scratch(px, py, ang, length, w, depth, bend=0.0, steps=18):
+        dx, dy = math.cos(ang), math.sin(ang)
+        p0 = (px - dx * length / 2, py - dy * length / 2)
+        p2 = (px + dx * length / 2, py + dy * length / 2)
+        p1 = (px - dy * bend, py + dx * bend)
+        pts = []
+        for i in range(steps + 1):
+            t = i / steps
+            pts.append(((1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * p1[0] + t * t * p2[0],
+                        (1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * p1[1] + t * t * p2[1], t))
+        for (xa, ya, ta), (xb, yb, tb) in zip(pts, pts[1:]):
+            if math.hypot(xa, ya) > limit or math.hypot(xb, yb) > limit:
+                continue
+            env = math.sin(math.pi * (ta + tb) / 2) ** 0.5       # к концам царапина сходит на нет
+            seg(c + xa * rp, c + ya * rp, c + xb * rp, c + yb * rp, w, depth * env)
+
+    def in_logo(x, y, grow=0.0):
+        return -0.94 - grow < x < 0.90 + grow and -0.29 - grow < y < 0.24 + grow
+
+    def rand_point(rmax=0.88, avoid_logo=False):
+        for _ in range(200):
+            r, a = rmax * math.sqrt(rng.random()), rng.random() * math.tau
+            x, y = r * math.cos(a), r * math.sin(a)
+            if not (avoid_logo and in_logo(x, y, 0.06)):
+                return x, y
+        return 0.0, 0.6
+
+    main_dirs = (math.radians(24), math.radians(-52))     # шайба скользит — царапины идут «пучками»
+
+    # 1. Тонкие волосяные царапины по всей грани (могут пересекать и логотип)
+    for _ in range(58):
+        x, y = rand_point()
+        ang = (main_dirs[int(rng.random() < 0.4)] + rng.normal(0, 0.2)) if rng.random() < 0.7 \
+            else rng.random() * math.pi
+        scratch(x, y, ang, rng.uniform(0.12, 0.75), rng.uniform(0.9, 1.5),
+                rng.uniform(0.14, 0.42), rng.normal(0, 0.03))
+
+    # 2. Заметные царапины — выше и ниже логотипа
+    for _ in range(6):
+        x, y = rand_point(0.84, avoid_logo=True)
+        ang = rng.normal(0, 0.5) + (math.pi if rng.random() < 0.5 else 0)
+        scratch(x, y, ang, rng.uniform(0.3, 0.8), rng.uniform(1.8, 2.5),
+                rng.uniform(0.55, 0.85), rng.normal(0, 0.06), steps=26)
+
+    # 3. Пара глубоких зарубок ближе к краю
+    for _ in range(2):
+        x, y = rand_point(0.86, avoid_logo=True)
+        scratch(x, y, rng.random() * math.pi, rng.uniform(0.08, 0.2), rng.uniform(3.4, 4.8),
+                1.0, rng.normal(0, 0.02), steps=10)
+
+    # 4. Потёртости — пятна из множества коротких параллельных штрихов
+    for _ in range(3):
+        x, y = rand_point(0.84, avoid_logo=True)
+        ang = main_dirs[int(rng.random() < 0.5)] + rng.normal(0, 0.15)
+        for _ in range(45):
+            scratch(x + rng.normal(0, 0.07), y + rng.normal(0, 0.045), ang + rng.normal(0, 0.07),
+                    rng.uniform(0.04, 0.16), rng.uniform(0.9, 1.3), rng.uniform(0.12, 0.33))
+
+    hm = np.clip(hm * SCRATCHES, 0, 1)
+    img = bpy.data.images.new('puck_scratches', n, n, alpha=False, is_data=True)
+    px = np.empty((n, n, 4), np.float32)
+    px[..., 0] = px[..., 1] = px[..., 2] = hm
+    px[..., 3] = 1.0
+    img.pixels.foreach_set(px.ravel())
+    img.update()
+    img.pack()
+    return img
+
+
+# ───────────────────────────── материал ─────────────────────────────
+class Nodes:
+    """Маленький помощник, чтобы собирать «рецепт» материала короткими строчками."""
+
+    def __init__(self, tree):
+        self.t = tree
+
+    def new(self, kind, **props):
+        node = self.t.nodes.new(kind)
+        for k, v in props.items():
+            setattr(node, k, v)
+        return node
+
+    def put(self, socket, value):
+        if isinstance(value, bpy.types.NodeSocket):
+            self.t.links.new(value, socket)
+        else:
+            socket.default_value = value
+
+    def m(self, op, a, b=None, c=None, clamp=False):
+        node = self.new('ShaderNodeMath', operation=op, use_clamp=clamp)
+        for i, v in enumerate((a, b, c)):
+            if v is not None:
+                self.put(node.inputs[i], v)
+        return node.outputs[0]
+
+    def smooth(self, value, lo, hi):
+        node = self.new('ShaderNodeMapRange', interpolation_type='SMOOTHSTEP')
+        for i, v in enumerate((value, lo, hi, 0.0, 1.0)):
+            self.put(node.inputs[i], v)
+        return node.outputs[0]
+
+    def mix_color(self, fac, a, b):
+        node = self.new('ShaderNodeMix', data_type='RGBA', blend_type='MIX', clamp_factor=True)
+        self.put(node.inputs[0], fac)
+        self.put(node.inputs[6], a)
+        self.put(node.inputs[7], b)
+        return node.outputs[2]
+
+    def mix(self, fac, a, b):
+        node = self.new('ShaderNodeMix', data_type='FLOAT', clamp_factor=True)
+        self.put(node.inputs[0], fac)
+        self.put(node.inputs[2], a)
+        self.put(node.inputs[3], b)
+        return node.outputs[0]
+
+    def noise(self, vector, scale, detail=4.0, rough=0.55):
+        node = self.new('ShaderNodeTexNoise')
+        self.put(node.inputs['Vector'], vector)
+        self.put(node.inputs['Scale'], scale)
+        self.put(node.inputs['Detail'], detail)
+        self.put(node.inputs['Roughness'], rough)
+        return node.outputs[0]
+
+    def image(self, img, vector, colorspace=None):
+        node = self.new('ShaderNodeTexImage', image=img, extension='CLIP', interpolation='Cubic')
+        if colorspace:
+            img.colorspace_settings.name = colorspace
+        self.put(node.inputs['Vector'], vector)
+        return node.outputs[0]
+
+    def bump(self, height, strength, distance, normal=None):
+        node = self.new('ShaderNodeBump')
+        self.put(node.inputs['Height'], height)
+        self.put(node.inputs['Strength'], strength)
+        self.put(node.inputs['Distance'], distance)
+        if normal is not None:
+            self.put(node.inputs['Normal'], normal)
+        return node.outputs[0]
+
+
+def rgb(v):
+    return (v[0], v[1], v[2], 1.0)
+
+
+def build_material(logo, scratches):
+    mat = bpy.data.materials.new('PuckRubber')
+    try:
+        mat.use_nodes = True
+    except Exception:
+        pass
+    tree = mat.node_tree
+    tree.nodes.clear()
+    n = Nodes(tree)
+
+    out = n.new('ShaderNodeOutputMaterial')
+    bsdf = n.new('ShaderNodeBsdfPrincipled')
+    tree.links.new(bsdf.outputs[0], out.inputs['Surface'])
+
+    pos = n.new('ShaderNodeTexCoord').outputs['Object']
+    sep = n.new('ShaderNodeSeparateXYZ')
+    tree.links.new(pos, sep.inputs[0])
+    x, y, z = sep.outputs[0], sep.outputs[1], sep.outputs[2]
+    radius = n.m('SQRT', n.m('ADD', n.m('MULTIPLY', x, x), n.m('MULTIPLY', y, y)))
+    abs_z = n.m('ABSOLUTE', z)
+    theta = n.m('ARCTAN2', y, x)
+
+    top = H / 2
+    on_top = n.m('GREATER_THAN', z, top - 0.002)             # 1 только на верхней плоской грани
+
+    # --- зоны ---
+    # кромка (скругление и чуть вокруг него) — там резина стирается сильнее всего
+    edge = n.m('MULTIPLY',
+               n.smooth(radius, R - BEVEL * 2.2, R - BEVEL * 0.6),
+               n.smooth(abs_z, top - BEVEL * 2.2, top - BEVEL * 0.6))
+    # полоса рифления на бортике (у самых кромок — гладкие полоски, как у настоящей шайбы)
+    band_edge = top - BEVEL - 0.028
+    band = n.m('SUBTRACT', 1.0, n.smooth(abs_z, band_edge - 0.022, band_edge))
+
+    # --- рифление «в ромбик»: две встречные спирали канавок ---
+    u = n.m('MULTIPLY', theta, KNURL_COUNT / math.tau)
+    v = n.m('MULTIPLY', z, KNURL_COUNT / (math.tau * R) * 0.82)
+    g1 = n.m('MULTIPLY', n.m('PINGPONG', n.m('ADD', u, v), 0.5), 2.0)
+    g2 = n.m('MULTIPLY', n.m('PINGPONG', n.m('SUBTRACT', u, v), 0.5), 2.0)
+    knurl = n.smooth(n.m('MINIMUM', g1, g2), 0.06, 0.5)       # 0 — дно канавки, 1 — верх ромбика
+    relief = n.m('SUBTRACT', 1.0, n.m('MULTIPLY', band, n.m('SUBTRACT', 1.0, knurl)))
+    disp = n.new('ShaderNodeDisplacement')
+    n.put(disp.inputs['Height'], relief)
+    n.put(disp.inputs['Midlevel'], 1.0)
+    n.put(disp.inputs['Scale'], KNURL_DEPTH)
+    tree.links.new(disp.outputs[0], out.inputs['Displacement'])
+
+    # --- шум: неровности резины, потёртости, сколы ---
+    grain = n.noise(pos, 340.0, 3.0, 0.6)
+    cloud = n.noise(pos, 2.6, 5.0, 0.6)
+    wear_n = n.noise(pos, 8.0, 7.0, 0.65)
+    chip_n = n.noise(pos, 46.0, 2.0, 0.5)
+    edge_wear = n.m('MULTIPLY', edge, n.smooth(wear_n, 0.42, 0.68))
+    chips = n.m('MULTIPLY', edge, n.smooth(chip_n, 0.71, 0.76))
+    side_wear = n.m('MULTIPLY', n.m('MULTIPLY', band, knurl), n.smooth(wear_n, 0.4, 0.72))
+
+    # --- царапины на верхней грани ---
+    uv_s = n.new('ShaderNodeCombineXYZ')
+    n.put(uv_s.inputs[0], n.m('ADD', n.m('MULTIPLY', x, 0.5 / R), 0.5))
+    n.put(uv_s.inputs[1], n.m('ADD', n.m('MULTIPLY', y, 0.5 / R), 0.5))
+    scratch = n.m('MULTIPLY', n.image(scratches, uv_s.outputs[0], 'Non-Color'), on_top)
+
+    # --- логотип: краска на резине ---
+    k = 0.5 / (R * LOGO_SCALE)
+    uv_l = n.new('ShaderNodeCombineXYZ')
+    n.put(uv_l.inputs[0], n.m('ADD', n.m('MULTIPLY', x, k), 0.5))
+    n.put(uv_l.inputs[1], n.m('ADD', n.m('MULTIPLY', y, k), 0.5))
+    logo_rgb = n.image(logo, uv_l.outputs[0])
+    bw = n.new('ShaderNodeRGBToBW')
+    tree.links.new(logo_rgb, bw.inputs[0])
+    ink = n.m('MULTIPLY', n.smooth(bw.outputs[0], 0.035, 0.26), on_top)
+    # царапины сдирают краску; плюс лёгкая общая потёртость печати
+    ink = n.m('MULTIPLY', ink, n.m('SUBTRACT', 1.0, n.m('MULTIPLY', scratch, 1.5, clamp=True)))
+    ink = n.m('MULTIPLY', ink, n.m('SUBTRACT', 1.0,
+                                   n.m('MULTIPLY', n.smooth(n.noise(pos, 120.0, 2.0), 0.62, 0.8), 0.35)))
+
+    # --- цвет ---
+    col = n.mix_color(cloud, rgb((0.014, 0.014, 0.016)), rgb((0.024, 0.024, 0.027)))
+    col = n.mix_color(n.m('MULTIPLY', edge_wear, 0.55), col, rgb((0.075, 0.078, 0.085)))
+    col = n.mix_color(n.m('MULTIPLY', side_wear, 0.45), col, rgb((0.07, 0.073, 0.08)))
+    col = n.mix_color(chips, col, rgb((0.06, 0.062, 0.068)))
+    col = n.mix_color(n.m('MULTIPLY', scratch, 0.9, clamp=True), col, rgb((0.10, 0.104, 0.112)))
+    col = n.mix_color(ink, col, logo_rgb)
+    n.put(bsdf.inputs['Base Color'], col)
+
+    # --- шероховатость (резина матовая, краска чуть глаже, царапины — шершавые) ---
+    rough = n.m('ADD', 0.44, n.m('MULTIPLY', n.m('SUBTRACT', cloud, 0.5), 0.16))
+    rough = n.mix(edge_wear, rough, 0.72)
+    rough = n.mix(side_wear, rough, 0.66)
+    rough = n.mix(n.m('MULTIPLY', scratch, 1.2, clamp=True), rough, 0.8)
+    rough = n.mix(n.m('MULTIPLY', ink, 0.8), rough, 0.36)
+    n.put(bsdf.inputs['Roughness'], rough)
+
+    # --- собственное свечение логотипа (чтобы синий оставался ярким, как в фирменном стиле) ---
+    n.put(bsdf.inputs['Emission Color'], logo_rgb)
+    n.put(bsdf.inputs['Emission Strength'], n.m('MULTIPLY', ink, LOGO_GLOW))
+
+    # --- мелкий рельеф: зерно резины, толщина краски, царапины, сколы ---
+    nrm = n.bump(cloud, 0.06, 0.02)
+    nrm = n.bump(grain, 0.10, 0.002, nrm)
+    relief_small = n.m('SUBTRACT', n.m('MULTIPLY', ink, 0.22),
+                       n.m('ADD', scratch, n.m('MULTIPLY', chips, 0.9)))
+    nrm = n.bump(relief_small, 0.55, 0.004, nrm)
+    n.put(bsdf.inputs['Normal'], nrm)
+
+    for attr_owner in (mat, getattr(mat, 'cycles', None)):
+        try:
+            attr_owner.displacement_method = 'BOTH'            # настоящий рельеф + мелкие детали
+            break
+        except Exception:
+            pass
+    return mat
+
+
+# ───────────────────────────── сцена ─────────────────────────────
+def add_light(scene, name, loc, power, color, size, size_y=None, target=(0, 0, 0)):
+    light = bpy.data.lights.new(name, 'AREA')
+    light.energy = power
+    light.color = color
+    light.shape = 'RECTANGLE' if size_y else 'SQUARE'
+    light.size = size
+    if size_y:
+        light.size_y = size_y
+    ob = bpy.data.objects.new(name, light)
+    scene.collection.objects.link(ob)
+    ob.location = loc
+    ob.rotation_euler = (Vector(target) - Vector(loc)).to_track_quat('-Z', 'Y').to_euler()
+    return ob
+
+
+def build_lights(scene):
+    ice = (0.50, 0.83, 1.0)        # ледяной голубой
+    blue = (0.05, 0.36, 1.0)       # фирменный синий
+    # Контровые стоят на уровне грани и ниже: подсвечивают кромку, но не «засвечивают» верх.
+    add_light(scene, 'Key', (-2.2, 2.6, 1.5), 150, (0.93, 0.96, 1.0), 2.2, 1.4)       # мягкий верхний
+    add_light(scene, 'RimBlue', (4.2, 3.6, 0.15), 1300, blue, 3.0, 1.2)                # синий контровой
+    add_light(scene, 'RimBack', (-0.6, 5.2, 0.2), 600, (0.22, 0.58, 1.0), 3.4, 0.9)             # обводит дальний край
+    add_light(scene, 'RimIce', (-4.4, 2.2, 0.1), 380, ice, 2.4, 1.0)                 # голубой контровой
+    add_light(scene, 'FrontLeft', (-3.6, -4.2, 0.4), 420, (0.9, 0.95, 1.0), 1.6, 3.2)  # скользящий по бортику
+    add_light(scene, 'FrontRight', (3.8, -4.0, 0.2), 260, ice, 1.2, 3.0)
+    add_light(scene, 'IceBounce', (0.0, -3.2, -2.6), 340, ice, 5.0, 3.0)             # отсвет ото льда снизу
+
+
+def build_world(scene):
+    world = bpy.data.worlds.new('PuckWorld')
+    try:
+        world.use_nodes = True
+    except Exception:
+        pass
+    scene.world = world
+    bg = next((nd for nd in world.node_tree.nodes if nd.type == 'BACKGROUND'), None)
+    if bg:
+        bg.inputs[0].default_value = (0.012, 0.02, 0.035, 1.0)
+        bg.inputs[1].default_value = 1.0
+
+
+def build_camera(scene):
+    cam_data = bpy.data.cameras.new('PuckCamera')
+    cam_data.lens = LENS
+    cam = bpy.data.objects.new('PuckCamera', cam_data)
+    scene.collection.objects.link(cam)
+    scene.camera = cam
+    a = math.radians(TILT)
+    direction = Vector((0.0, -math.sin(a), math.cos(a)))
+    cam.rotation_euler = (-direction).to_track_quat('-Z', 'Y').to_euler()
+    cam.location = direction * 8.0
+
+    # подгоняем расстояние и сдвиг кадра так, чтобы шайба занимала весь квадрат
+    top, flat, side = H / 2, R - BEVEL, H / 2 - BEVEL
+    pts = [Vector((r * math.cos(t), r * math.sin(t), zz))
+           for r, zz in ((flat, top), (R, side), (R, -side), (flat, -top))
+           for t in np.linspace(0, math.tau, 180, endpoint=False)]
+    for _ in range(8):
+        bpy.context.view_layer.update()
+        pr = [world_to_camera_view(scene, cam, p) for p in pts]
+        xs, ys = [p.x for p in pr], [p.y for p in pr]
+        cam_data.shift_x += (max(xs) + min(xs)) / 2 - 0.5
+        cam_data.shift_y += (max(ys) + min(ys)) / 2 - 0.5
+        scale = max(max(xs) - min(xs), max(ys) - min(ys)) / (1 - 2 * MARGIN)
+        cam.location = cam.location * scale
+    return cam
+
+
+def setup_render(scene):
+    r = scene.render
+    try:
+        r.engine = 'CYCLES'
+    except TypeError as e:
+        print('Cycles недоступен:', e)
+    r.resolution_x = r.resolution_y = SIZE
+    r.resolution_percentage = 100
+    r.film_transparent = True
+    r.filepath = OUT_PATH
+    r.image_settings.file_format = 'WEBP'
+    r.image_settings.color_mode = 'RGBA'
+    r.image_settings.color_depth = '8'
+    r.image_settings.quality = WEBP_QUALITY
+    try:
+        scene.view_settings.view_transform = 'Standard'
+        scene.view_settings.look = 'None'
+    except TypeError:
+        pass
+    cy = scene.cycles
+    cy.samples = SAMPLES
+    cy.use_adaptive_sampling = True
+    cy.adaptive_threshold = 0.008
+    cy.use_denoising = True
+    cy.max_bounces = 6
+    try:   # видеокарта — только если она уже включена в настройках Blender
+        prefs = bpy.context.preferences.addons['cycles'].preferences
+        cy.device = 'GPU' if prefs.compute_device_type != 'NONE' else 'CPU'
+    except Exception:
+        cy.device = 'CPU'
+
+
+def show_in_viewport():
+    """Показываем шайбу в окне Blender глазами камеры (чтобы было видно, что получилось)."""
+    try:
+        for window in bpy.context.window_manager.windows:
+            for area in window.screen.areas:
+                if area.type == 'VIEW_3D':
+                    space = area.spaces.active
+                    space.region_3d.view_perspective = 'CAMERA'
+                    space.shading.type = 'RENDERED'
+                    space.overlay.show_overlays = False
+    except Exception as e:
+        print('Не удалось переключить окно просмотра:', e)
+
+
+def build_scene():
+    scene = bpy.context.scene
+    for ob in list(bpy.data.objects):
+        bpy.data.objects.remove(ob, do_unlink=True)
+    for img in list(bpy.data.images):
+        if img.name.startswith('puck_'):
+            bpy.data.images.remove(img)
+
+    logo = bpy.data.images.load(LOGO_PATH)
+    logo.name = 'puck_logo'
+    mesh = build_mesh()
+    mesh.materials.append(build_material(logo, make_scratch_map()))
+    puck = bpy.data.objects.new('Puck', mesh)
+    scene.collection.objects.link(puck)
+
+    setup_render(scene)            # сначала размер кадра — по нему подгоняется камера
+    build_lights(scene)
+    build_world(scene)
+    build_camera(scene)
+    show_in_viewport()
+    return scene
+
+
+def render():
+    bpy.ops.render.render(write_still=True)
+    print('Готово:', OUT_PATH, round(os.path.getsize(OUT_PATH) / 1024), 'КБ')
+
+
+if __name__ == '__main__':
+    build_scene()
+    # даём окну Blender появиться, потом рендерим и сохраняем картинку
+    bpy.app.timers.register(lambda: render(), first_interval=1.5)

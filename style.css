@@ -205,6 +205,9 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   pointer-events: none;
 }
 .puck.has-side .puck__body { visibility: hidden; }
+/* Когда шайбу рисует видеочип, логотип тоже на холсте (одним кадром с бортиком — так они
+   не расходятся), и картинка-логотип прячется. */
+.puck.has-face .puck__face { visibility: hidden; }
 
 /* Верхняя грань. Картинка с логотипом — ровный круг; шайба наклонена, поэтому сжимаем
    круг в овал (--face-squash). Внутри овала картинка вращается (см. puck-spin ниже). */
@@ -279,8 +282,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 .puck-zone.is-flying .puck-slide  { animation: puck-slide var(--slide-time) var(--ice-friction) both; }
 .puck-zone.is-flying .puck__marks { animation: puck-spin var(--slide-time) var(--ice-friction) both; }
-/* Когда бортик рисуется на холсте, логотип крутит script.js — в том же кадре, что и бортик
-   (иначе на iPhone верх и бортик расходились). CSS-вращение остаётся запасным вариантом. */
+/* Когда шайба рисуется на холсте, угол поворота считает script.js — логотип и бортик
+   поворачиваются одним кадром (иначе на iPhone они расходились). CSS-вращение — запасной вариант. */
 .puck-zone.js-spin.is-flying .puck__marks { animation: none; }
 /* след: растёт ровно вместе с шайбой, а когда она остановилась — тает */
 .puck-zone.is-flying .puck-trail i {

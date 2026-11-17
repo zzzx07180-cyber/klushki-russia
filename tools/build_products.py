@@ -100,7 +100,10 @@ def product(path):
     p["price"] = whole(d.get("price"))                       # None → «Цена по запросу»
     p["inStock"] = d.get("inStock") is not False             # не указано → «в наличии»
     photos = d.get("photos") if isinstance(d.get("photos"), list) else []
-    p["photos"] = [text(x) for x in photos if text(x)]
+    # Админка пишет «/images/products/фото.webp», а сайт живёт в подпапке (…github.io/klushki-russia/),
+    # поэтому ведущую «/» убираем: «images/products/фото.webp» — путь от страницы сайта
+    p["photos"] = [x if x.startswith(("http://", "https://")) else x.lstrip("/")
+                   for x in map(text, photos) if x]
     if p.get("type") == "restored":
         p["repair"] = text(stick.get("repair")) if text(stick.get("repair")) in REPAIRS else "shaft"
         if text(stick.get("repairNote")):

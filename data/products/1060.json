@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "Bauer",
+  "name": "Shadow",
+  "price": 4500,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "blade",
+    "hand": "Левый",
+    "goalie": true,
+    "paddle": "25″"
+  },
+  "sku": "104"
+}

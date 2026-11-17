@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "CCM",
+  "name": "Ft6",
+  "price": 2500,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "blade",
+    "hand": "Левый",
+    "curve": "P29",
+    "flex": 75
+  },
+  "sku": "92"
+}

@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "Bauer",
+  "name": "Tracer",
+  "price": 3000,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "blade",
+    "hand": "Левый",
+    "curve": "P29",
+    "flex": 50
+  },
+  "sku": "12"
+}

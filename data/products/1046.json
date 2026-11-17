@@ -1,0 +1,13 @@
+{
+  "category": "sticks",
+  "brand": "Заряд",
+  "name": "T100",
+  "price": 4000,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Левый"
+  },
+  "sku": "83"
+}

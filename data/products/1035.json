@@ -1,0 +1,14 @@
+{
+  "category": "sticks",
+  "brand": "Союз",
+  "name": "Hit ultra",
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Правый",
+    "curve": "P28",
+    "flex": 70
+  },
+  "sku": "72"
+}

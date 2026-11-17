@@ -13,6 +13,10 @@
 # Личные инструкции для Claude на этом компьютере (описание команды проверки)
 CLAUDE.local.md
 
+# Список товаров для сайта собирается из data/products/*.json (tools/build_products.py):
+# на GitHub — при публикации, на этом компьютере — при запуске предпросмотра
+data/products.js
+
 # Системный мусор Windows / macOS
 Thumbs.db
 Desktop.ini

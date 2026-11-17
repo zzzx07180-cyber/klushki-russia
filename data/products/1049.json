@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "CCM",
+  "name": "Ft4",
+  "price": 4000,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Левый",
+    "curve": "P92",
+    "flex": 80
+  },
+  "sku": "86"
+}

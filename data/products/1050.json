@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "MVP",
+  "name": "Breezy",
+  "price": 3000,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Левый",
+    "curve": "P92",
+    "flex": 85
+  },
+  "sku": "87"
+}

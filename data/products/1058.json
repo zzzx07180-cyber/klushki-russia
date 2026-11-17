@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "Заряд",
+  "name": "Apex",
+  "price": 2000,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "blade",
+    "hand": "Левый",
+    "curve": "P29",
+    "flex": 75
+  },
+  "sku": "102"
+}

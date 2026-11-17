@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "Warrior",
+  "name": "2lx Pro",
+  "price": 4500,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Левый",
+    "curve": "P29",
+    "flex": 75
+  },
+  "sku": "21"
+}

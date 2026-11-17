@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "Союз",
+  "name": "Hitch (белый)",
+  "price": 4500,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Левый",
+    "curve": "P28",
+    "flex": 75
+  },
+  "sku": "31"
+}

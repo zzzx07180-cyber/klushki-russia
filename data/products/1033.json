@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "Bauer",
+  "name": "2S",
+  "price": 4000,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Левый",
+    "curve": "P90",
+    "flex": 112
+  },
+  "sku": "70"
+}

@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "Заряд",
+  "name": "белый",
+  "price": 4000,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Правый",
+    "curve": "P28",
+    "flex": 65
+  },
+  "sku": "51"
+}

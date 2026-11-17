@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "Sherwood",
+  "name": "Code Encrypt",
+  "price": 4500,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Левый",
+    "curve": "P29",
+    "flex": 85
+  },
+  "sku": "23"
+}

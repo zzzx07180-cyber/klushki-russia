@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "CCM",
+  "name": "H8",
+  "price": 5000,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Левый",
+    "curve": "P28",
+    "flex": 50
+  },
+  "sku": "52"
+}

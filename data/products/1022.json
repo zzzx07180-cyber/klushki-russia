@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "Bauer",
+  "name": "E50 Pro",
+  "price": 4500,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Левый",
+    "curve": "P92",
+    "flex": 87
+  },
+  "sku": "29"
+}

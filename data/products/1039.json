@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "Союз",
+  "name": "Hitch upper (серая)",
+  "price": 4500,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Левый",
+    "curve": "P28",
+    "flex": 95
+  },
+  "sku": "76"
+}

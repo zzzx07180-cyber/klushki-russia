@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "Bauer",
+  "name": "Черная",
+  "price": 4000,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Левый",
+    "goalie": true,
+    "paddle": "26″"
+  },
+  "sku": "2"
+}

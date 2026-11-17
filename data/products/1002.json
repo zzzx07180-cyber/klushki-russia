@@ -1,0 +1,14 @@
+{
+  "category": "sticks",
+  "brand": "CCM",
+  "name": "Premier 2",
+  "price": 4000,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Левый",
+    "goalie": true
+  },
+  "sku": "3"
+}

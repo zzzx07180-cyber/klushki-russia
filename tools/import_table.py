@@ -1,10 +1,14 @@
 """
-Импорт товаров из Excel-таблицы в data/products.js
+Импорт товаров из Excel-таблицы в файлы товаров data/products/*.json (их же меняет админка),
+после чего сразу собирается data/products.js (tools/build_products.py).
+
+⚠️ С 2026-11-17 товары ведутся в АДМИНКЕ (сайт/admin/), таблица больше не главная.
+Импорт нужен только чтобы залить каталог с нуля: если в data/products/ уже есть товары,
+скрипт откажется работать. Начать заново с таблицы = удалить папку data/products/
+(все правки и фото, сделанные в админке, пропадут) и запустить импорт.
 
 Как пользоваться (в терминале, в папке проекта):
     py tools/import_table.py "C:\\Users\\K4K-PC\\Downloads\\Новая таблица.xlsx"
-
-⚠️ Файл data/products.js будет ПЕРЕЗАПИСАН целиком — правь товары в таблице, а не в нём.
 
 Ожидаемый вид таблицы (первый лист, заголовки в 1-й строке):
   Столбцы A–H — ВОССТАНОВЛЕННЫЕ клюшки: №, Бренд, Модель, Хват, Загиб, Жесткость, Цена, Пометки
@@ -24,13 +28,14 @@
 """
 import json
 import re
+import subprocess
 import sys
 import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
-OUT = Path(__file__).resolve().parent.parent / "data" / "products.js"
+OUT = Path(__file__).resolve().parent.parent / "data" / "products"   # по файлу на товар
 
 # Реплики (столбцы L–S) на сайт не выгружаем — владелец убрал их из каталога (2026-11-16).
 # Чтобы вернуть: поставить True и запустить импорт заново.
@@ -162,11 +167,39 @@ def other(cells, r, next_id):
     }
 
 
+def admin_format(p):
+    """Товар → файл в том виде, как его хранит админка (admin/config.yml): «клюшечные» поля — в stick,
+    номер на сайте — в имени файла. Обратно в вид для сайта переводит tools/build_products.py."""
+    s = p["specs"]
+    d = {"category": p["category"], "brand": p["brand"]}
+    if p["name"]:
+        d["name"] = p["name"]
+    if p["price"] is not None:
+        d["price"] = p["price"]
+    d["inStock"] = p["inStock"]
+    if p["category"] == "sticks":
+        d["stick"] = {k: v for k, v in (("type", p.get("type")), ("repair", p.get("repair")),
+                                         ("hand", s.get("hand")), ("curve", s.get("curve")),
+                                         ("flex", s.get("flex")), ("goalie", s.get("goalie")),
+                                         ("paddle", s.get("paddle"))) if v not in (None, "")}
+    if s.get("size"):
+        d["size"] = s["size"]
+    if p["sku"]:
+        d["sku"] = p["sku"]
+    return d
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")      # чтобы русский текст в консоли Windows не «ломался»
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
+    if any(OUT.glob("*.json")):
+        print(f"⚠️ В {OUT} уже есть товары — их ведёт админка, импорт отменён.\n"
+              "Начать заново с таблицы: удалите эту папку (правки и фото из админки пропадут) "
+              "и запустите импорт ещё раз.")
+        sys.exit(1)
+    OUT.mkdir(parents=True, exist_ok=True)
     cells = read_sheet(sys.argv[1])
     last = max(r for r, _ in cells)
     restored, replicas, others = [], [], []
@@ -180,25 +213,16 @@ def main():
         if p: others.append(p)
 
     products = restored + replicas + others
-    header = (
-        "// ===== Список товаров =====\n"
-        "// ⚠️ ФАЙЛ СОЗДАН АВТОМАТИЧЕСКИ из Excel-таблицы программой tools/import_table.py.\n"
-        "// Правь товары в таблице и запускай импорт заново — ручные правки здесь пропадут.\n"
-        "//   py tools/import_table.py \"путь\\к\\таблице.xlsx\"\n"
-        "//\n"
-        "// Поля: id — номер на сайте; sku — номер из твоей таблицы; category — раздел;\n"
-        "// type — original/replica/restored; repair — blade (перо) / shaft (труба);\n"
-        "// specs — curve (загиб), flex (жёсткость), hand (хват), goalie (вратарская), paddle (длина пера),\n"
-        "// size (размер); price — цена (null = по запросу); inStock — в наличии; photos — список фото.\n\n"
-    )
-    body = "window.PRODUCTS = " + json.dumps(products, ensure_ascii=False, indent=2) + ";\n"
-    OUT.write_text(header + body, encoding="utf-8")
+    for p in products:
+        (OUT / f"{p['id']}.json").write_text(
+            json.dumps(admin_format(p), ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(f"Готово: {OUT}")
     replica_note = len(replicas) if SHOW_REPLICAS else "пропущены (SHOW_REPLICAS = False)"
     print(f"  восстановленные: {len(restored)}, реплики: {replica_note}, прочее: {len(others)}, всего: {len(products)}")
     no_price = [f"{p['brand']} {p['name']} (№{p['sku']})" for p in products if p["price"] is None]
     if no_price:
         print("  без цены (будет «по запросу»):", "; ".join(no_price))
+    subprocess.run([sys.executable, str(Path(__file__).with_name("build_products.py"))], check=True)
 
 
 if __name__ == "__main__":

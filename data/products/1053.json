@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "CCM",
+  "name": "Trigger 8",
+  "price": 4500,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Правый",
+    "curve": "P29",
+    "flex": 85
+  },
+  "sku": "84"
+}

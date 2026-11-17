@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "Союз",
+  "name": "Hit Force",
+  "price": 3000,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "blade",
+    "hand": "Правый",
+    "curve": "P28",
+    "flex": 65
+  },
+  "sku": "69"
+}

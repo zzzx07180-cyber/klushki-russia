@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "Заряд",
+  "name": "Apex",
+  "price": 3000,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Левый",
+    "curve": "P29",
+    "flex": 75
+  },
+  "sku": "6"
+}

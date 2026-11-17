@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "CCM",
+  "name": "Ft 5",
+  "price": 4500,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Правый",
+    "curve": "P28",
+    "flex": 75
+  },
+  "sku": "16"
+}

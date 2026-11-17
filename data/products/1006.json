@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "Союз",
+  "name": "Laser",
+  "price": 3000,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Левый",
+    "curve": "P28",
+    "flex": 77
+  },
+  "sku": "8"
+}

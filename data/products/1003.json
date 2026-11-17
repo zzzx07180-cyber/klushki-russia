@@ -1,0 +1,14 @@
+{
+  "category": "sticks",
+  "brand": "Warrior",
+  "name": "Белая",
+  "price": 3500,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Левый",
+    "goalie": true
+  },
+  "sku": "4"
+}

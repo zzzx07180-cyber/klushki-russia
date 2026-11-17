@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "Warrior",
+  "name": "Lx2",
+  "price": 3500,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Правый",
+    "curve": "P29",
+    "flex": 85
+  },
+  "sku": "10"
+}

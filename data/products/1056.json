@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "Союз",
+  "name": "SPR",
+  "price": 2500,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "blade",
+    "hand": "Левый",
+    "curve": "P92",
+    "flex": 70
+  },
+  "sku": "99"
+}

@@ -1,0 +1,15 @@
+{
+  "category": "sticks",
+  "brand": "Sherwood",
+  "name": "Encrypt 1",
+  "price": 4000,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Левый",
+    "curve": "P92",
+    "flex": 75
+  },
+  "sku": "71"
+}

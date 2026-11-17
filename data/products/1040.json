@@ -1,0 +1,14 @@
+{
+  "category": "sticks",
+  "brand": "X17",
+  "price": 4500,
+  "inStock": true,
+  "stick": {
+    "type": "restored",
+    "repair": "shaft",
+    "hand": "Левый",
+    "curve": "P28",
+    "flex": 85
+  },
+  "sku": "77"
+}

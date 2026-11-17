@@ -1,6 +1,6 @@
 // ===== Общий код магазина =====
-// Нужен и каталогу (catalog.js), и странице товара (product.js):
-// названия разделов, форматирование цены, характеристики, кнопка «Заказать».
+// Нужен каталогу (catalog.js), странице товара (product.js) и корзине (cart.js):
+// названия разделов, форматирование цены, характеристики, ссылка в Telegram, копирование текста.
 
 window.Shop = (function () {
   const TELEGRAM = 'https://t.me/';
@@ -89,9 +89,50 @@ window.Shop = (function () {
     toastTimer = setTimeout(() => el.classList.remove('is-visible'), 4500);
   }
 
-  // ----- «Заказать» -----
-  // Telegram не умеет подставлять текст в личный чат, поэтому копируем готовое
-  // сообщение в буфер обмена — покупателю останется вставить его и отправить.
+  // ----- Telegram и копирование текста -----
+  // Ссылка на чат. Когда в адресе Telegram стоит настоящее имя (t.me/имя), текст сам появляется
+  // в поле сообщения — покупателю остаётся нажать «Отправить». Пока имя условное (просто t.me/),
+  // так не получится, поэтому текст ещё и копируется: его можно вставить в чат.
+  // Длинный текст (больше 1500 знаков) в ссылку не кладём — Telegram его обрежет.
+  const TELEGRAM_HAS_NAME = /t\.me\/\w{3,}/.test(TELEGRAM);
+  function telegramLink(text) {
+    return TELEGRAM_HAS_NAME && text && text.length <= 1500
+      ? TELEGRAM + '?text=' + encodeURIComponent(text)
+      : TELEGRAM;
+  }
+
+  // Копируем текст в буфер обмена. Отвечает «получилось / не получилось» (true / false).
+  // Сначала старый способ: он срабатывает сразу, прямо в момент нажатия — это важно, потому что
+  // следом открывается Telegram и страница уходит на задний план. Новый способ — запасной.
+  function copyText(text) {
+    let ok = false;
+    const active = document.activeElement;
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');                       // чтобы на телефоне не выскакивала клавиатура
+    ta.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;font-size:16px;';
+    document.body.appendChild(ta);
+    try {
+      ta.focus({ preventScroll: true });
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      ok = document.execCommand('copy');
+    } catch (e) { ok = false; }
+    ta.remove();
+    if (active && active.focus) active.focus({ preventScroll: true });
+    if (ok) return Promise.resolve(true);
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text).then(() => true, () => false);
+    }
+    return Promise.resolve(false);
+  }
+
+  function productURL(p) {
+    return new URL('product.html?id=' + p.id, location.href).href;
+  }
+
+  // ----- «Узнать о поступлении» (товара нет в наличии) -----
+  // Товары в наличии заказывают через корзину (cart.js). Для остальных — готовое сообщение в Telegram.
   function orderMessage(p) {
     const what = [p.brand, title(p), TYPE_BADGE[p.type] && '(' + TYPE_BADGE[p.type].toLowerCase() + ')'].filter(Boolean).join(' ');
     const sku = p.sku ? ' №' + p.sku + '.' : '';
@@ -103,30 +144,23 @@ window.Shop = (function () {
       : `Здравствуйте! Сообщите, пожалуйста, когда появится: ${what}.${sku}${specs}${repair} Ссылка: ${productURL(p)}`;
   }
 
-  function productURL(p) {
-    return new URL('product.html?id=' + p.id, location.href).href;
-  }
-
   function order(p) {
-    const msg = orderMessage(p);
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(msg)
-        .then(() => showToast('Текст заказа скопирован — вставь его в чат Telegram и отправь'))
-        .catch(() => showToast('Открываем Telegram — напиши, какой товар тебя интересует'));
-    } else {
-      showToast('Открываем Telegram — напиши, какой товар тебя интересует');
-    }
+    copyText(orderMessage(p)).then((ok) => showToast(ok
+      ? 'Текст скопирован — вставь его в чат Telegram и отправь'
+      : 'Открываем Telegram — напиши, какой товар тебя интересует'));
     // саму ссылку не останавливаем: Telegram откроется в новой вкладке
   }
 
-  // Кнопка «Заказать» / «Узнать о поступлении» (HTML)
+  // Кнопка под товаром. Есть в наличии — «В корзину» (её рисует cart.js),
+  // нет в наличии — «Узнать о поступлении» (ссылка в Telegram).
   function orderButton(p, extraClass) {
+    if (p.inStock && window.Cart) return window.Cart.button(p, extraClass);
     const cls = 'btn' + (p.inStock ? '' : ' btn--dark') + (extraClass ? ' ' + extraClass : '');
     const text = p.inStock ? 'Заказать' : 'Узнать о поступлении';
-    return `<a href="${TELEGRAM}" class="${cls}" target="_blank" rel="noopener" data-order="${p.id}">${text}</a>`;
+    return `<a href="${esc(telegramLink(orderMessage(p)))}" class="${cls}" target="_blank" rel="noopener" data-order="${esc(p.id)}">${text}</a>`;
   }
 
-  // Ловим нажатия на любые кнопки «Заказать» внутри контейнера
+  // Ловим нажатия на кнопки-ссылки «Узнать о поступлении» внутри контейнера
   function bindOrderButtons(container) {
     container.addEventListener('click', (e) => {
       const link = e.target.closest('[data-order]');
@@ -139,6 +173,6 @@ window.Shop = (function () {
   return {
     TELEGRAM, CATEGORIES, TYPES, TYPE_BADGE, REPAIRS,
     repairLabel, esc, price, hasPrice, category, title, photos, specsText, specsTable,
-    showToast, orderButton, bindOrderButtons
+    showToast, telegramLink, copyText, productURL, orderButton, bindOrderButtons
   };
 })();

@@ -35,7 +35,14 @@
         КЛЮШКИ <span class="logo__tag">RUSSIA</span>
       </a>
 
-      <a href="tel:+70000000000" class="header__phone">+7 (000) 000-00-00</a>
+      <div class="header__right">
+        <a href="tel:+70000000000" class="header__phone">+7 (000) 000-00-00</a>
+        <!-- Корзина: число товаров и выдвижное окно — в cart.js -->
+        <button class="cart-btn" id="cartBtn" type="button" data-cart-open aria-label="Корзина">
+          <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h3.4l3 13.2h12.6l2.6-9.4H6.8"/><circle cx="11" cy="22.6" r="1.7"/><circle cx="20" cy="22.6" r="1.7"/></svg>
+          <span class="cart-btn__count" id="cartCount" hidden>0</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -96,12 +103,12 @@
           <li class="step">
             <span class="step__num">01</span>
             <b>Выбери</b>
-            <span>Найди клюшку или экипировку в каталоге. Не уверен — спроси, подскажем загиб и жёсткость.</span>
+            <span>Найди клюшку или экипировку в каталоге и добавь в корзину. Не уверен — спроси, подскажем загиб и жёсткость.</span>
           </li>
           <li class="step">
             <span class="step__num">02</span>
-            <b>Напиши или позвони</b>
-            <span>Telegram @username или +7 (000) 000-00-00. Пришлём живые фото товара.</span>
+            <b>Отправь заказ</b>
+            <span>Корзина соберёт заказ в одно сообщение для Telegram @username. Или позвони: +7 (000) 000-00-00. Пришлём живые фото товара.</span>
           </li>
           <li class="step">
             <span class="step__num">03</span>
@@ -162,13 +169,14 @@
     </span>
   </a>
 
-  <!-- Всплывающая подсказка после нажатия «Заказать» -->
+  <!-- Всплывающая подсказка (например, «Текст скопирован») -->
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="ice.js?v=20261116-0959"></script>
   <script src="script.js?v=20261116-0959"></script>
   <script src="data/products.js?v=20261116-0959"></script>
   <script src="shop.js?v=20261116-0959"></script>
+  <script src="cart.js?v=20261116-0959"></script>
   <script src="catalog.js?v=20261116-0959"></script>
 </body>
 </html>

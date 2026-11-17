@@ -1,0 +1,46 @@
+# Публикация сайта на GitHub Pages.
+# Запускается сама при каждом изменении ветки main — и после git push, и после «Сохранить»
+# в админке. Собирает каталог data/products.js из файлов товаров data/products/*.json
+# (tools/build_products.py) и выкладывает сайт. Ход работы: вкладка Actions на GitHub.
+# ⚠️ В настройках репозитория (Settings → Pages → Source) должно стоять «GitHub Actions».
+
+name: Публикация сайта
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:          # кнопка «Run workflow» на вкладке Actions — опубликовать вручную
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Если сохранили несколько товаров подряд, публикации идут по очереди, выигрывает последняя
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Взять файлы сайта
+        uses: actions/checkout@v7
+
+      - name: Собрать каталог из data/products/
+        run: python3 tools/build_products.py --stamp
+
+      - uses: actions/configure-pages@v6
+
+      - name: Упаковать сайт
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: .
+
+      - name: Выложить на GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

@@ -1086,6 +1086,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   background: rgba(3, 6, 12, .74);
   opacity: 0;
   transition: opacity .3s;
+  touch-action: none;                        /* iPhone: пальцем по затемнению страница под ним не едет */
 }
 .cart__panel {
   position: absolute;
@@ -1117,6 +1118,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   gap: 12px;
   height: 68px;
   padding: 0 8px 0 20px;
+  touch-action: none;
   background: var(--black);
   border-bottom: 2px solid var(--accent);
   box-shadow: 0 2px 18px var(--accent-glow);

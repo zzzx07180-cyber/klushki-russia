@@ -280,7 +280,8 @@
     if (isSticks() && state.hand !== 'all') q.set('hand', state.hand);
     if (state.stock) q.set('stock', '1');
     if (state.sort !== 'default') q.set('sort', state.sort);
-    history.replaceState(null, '', '?' + q.toString());
+    // history.state не трогаем: там корзина (cart.js) хранит отметку «окно открыто» для кнопки «Назад»
+    history.replaceState(history.state, '', '?' + q.toString());
   }
 
   function update() {

@@ -22,8 +22,14 @@ window.Cart = (function () {
   const { esc, price, hasPrice, title, photos, category, specsText } = S;
   const PRODUCTS = window.PRODUCTS || [];
   const KEY = 'klushki-cart';                       // под этим именем корзина лежит в браузере
-  // smart — доставка «умная»: подсказки городов, пункты на карте, цена (режимы demo и live в delivery.js)
+  // Как считается доставка выбранной службы (подробно — в начале delivery.js):
+  //  byIndex — Почта России по её настоящему калькулятору: покупатель вводит индекс, сайт показывает цену и срок;
+  //  byMap   — СДЭК в режимах demo / live: город из подсказок, пункты на карте, цена;
+  //  ни то, ни другое — служба выбрана, а пункт и цену уточняем в чате (режим off).
   const smart = D.MODE !== 'off';
+  const byIndex = () => state.delivery === 'post' && D.postCalc;
+  const byMap = () => smart && !byIndex();
+  const indexOk = () => /^\d{6}$/.test(state.index);
   // Способы оплаты. online: true — оплата на сайте (окно «Оплата»), false — договариваемся в чате.
   // chips — значки платёжных систем справа (просто надписи, без чужих логотипов).
   const PAYMENT = [
@@ -53,9 +59,10 @@ window.Cart = (function () {
   // ----- Что лежит в корзине -----
   // items — номера товаров (id) в том порядке, в каком их добавляли;
   // delivery — служба (cdek / post), method — способ (pvz — пункт выдачи / отделение, door — курьер до двери),
-  // city / cityId — город (название и номер в справочнике службы), point — выбранный пункт,
+  // city / cityId — город (название и номер в справочнике службы), index — почтовый индекс (для Почты),
+  // point — выбранный пункт,
   // street / flat — адрес для курьера, pay — способ оплаты.
-  const state = { items: [], delivery: '', method: 'pvz', city: '', cityId: '', point: null, street: '', flat: '', pay: 'card' };
+  const state = { items: [], delivery: '', method: 'pvz', city: '', cityId: '', index: '', point: null, street: '', flat: '', pay: 'card' };
 
   function load() {
     try {
@@ -65,6 +72,7 @@ window.Cart = (function () {
       state.method = d.method === 'door' ? 'door' : 'pvz';
       state.city = clean(d.city, 60);
       state.cityId = clean(d.cityId, 40);
+      state.index = /^\d{1,6}$/.test(d.index) ? d.index : '';
       const p = d.point;
       state.point = p && typeof p === 'object' && clean(p.id, 80)
         ? { id: clean(p.id, 80), name: clean(p.name, 120), address: clean(p.address, 200), hours: clean(p.hours, 120) }
@@ -115,23 +123,29 @@ window.Cart = (function () {
   // Спрашиваем у delivery.js, когда известны служба, способ и город. Ответ приходит не сразу —
   // пока ждём, пишем «Считаем доставку…». key — для каких условий посчитано.
   let quoteNow = { key: '', status: 'idle' };
-  const quoteKey = () => smart && state.delivery && state.cityId
-    ? [state.delivery, state.method, state.cityId, state.items.join(',')].join('|') : '';
+  function quoteKey() {
+    if (!state.delivery) return '';
+    const base = [state.delivery, state.method, state.items.join(',')];
+    if (byIndex()) return indexOk() ? base.concat('#' + state.index).join('|') : '';
+    return byMap() && state.cityId ? base.concat(state.cityId).join('|') : '';
+  }
 
   function requestQuote() {
     const key = quoteKey();
     if (key === quoteNow.key) return;
     if (!key) { quoteNow = { key: '', status: 'idle' }; return; }
     quoteNow = { key, status: 'loading' };
-    D.quote({ service: state.delivery, method: state.method, city: state.cityId, parcels: D.parcels(items()) })
+    D.quote({ service: state.delivery, method: state.method, city: state.cityId, index: state.index, parcels: D.parcels(items()) })
       .then((q) => {
         if (quoteNow.key !== key) return;
         const cost = Math.round(Number(q && q.price));
-        quoteNow = cost >= 0 ? { key, status: 'ok', price: cost, days: [Number(q.daysMin), Number(q.daysMax)] } : { key, status: 'error' };
+        quoteNow = cost >= 0
+          ? { key, status: 'ok', price: cost, days: [Number(q.daysMin), Number(q.daysMax)], office: q.office || null }
+          : { key, status: 'error' };
         paintQuote();
-      }, () => {
+      }, (e) => {
         if (quoteNow.key !== key) return;
-        quoteNow = { key, status: 'error' };
+        quoteNow = { key, status: 'error', reason: e && e.message };   // heavy / index / slow — для подсказки
         paintQuote();
       });
   }
@@ -149,7 +163,10 @@ window.Cart = (function () {
     const s = D.service(state.delivery);
     if (!s) return state.city ? 'город ' + state.city : '';
     const parts = [s.label, D.method(state.delivery, state.method).text];
-    if (state.method === 'pvz' && smart && state.point) parts.push(state.point.name + ' — ' + state.point.address);
+    const office = byIndex() && state.method === 'pvz' && shipCost() !== null && quoteNow.office;
+    if (byIndex() && state.index) parts.push('индекс ' + state.index);
+    if (office) parts.push('отделение «' + office.name + '», ' + office.address);
+    else if (state.method === 'pvz' && byMap() && state.point) parts.push(state.point.name + ' — ' + state.point.address);
     else if (state.city) parts.push('г. ' + state.city);
     if (state.method === 'door' && state.street) parts.push(state.street + (state.flat ? ', кв./офис ' + state.flat : ''));
     return parts.join(', ');
@@ -269,7 +286,9 @@ window.Cart = (function () {
     const cost = shipCost();
     if (cost !== null) {
       const days = daysText(quoteNow.days);
-      lines.push('Доставка по расчёту сайта: ' + rub(cost) + (days ? ', ' + days : '') + (D.MODE === 'demo' ? ' (демо-пример)' : ''));
+      const how = byIndex() ? 'Доставка по тарифу Почты России: ' : 'Доставка по расчёту сайта: ';
+      const note = byIndex() ? (D.postExample ? ' (пример: отправка из Москвы)' : '') : (D.MODE === 'demo' ? ' (демо-пример)' : '');
+      lines.push(how + rub(cost) + (days ? ', ' + days : '') + note);
       if (t.sum) lines.push('Всего с доставкой: ' + price(t.sum + cost) + (t.ask ? ' (без товаров с ценой по запросу)' : ''));
     }
     lines.push('Способ оплаты: ' + payMethod(t).inText);
@@ -344,6 +363,7 @@ window.Cart = (function () {
     if (t.sum && t.ask) {
       return `Без ${t.ask === 1 ? 'товара' : 'товаров'} с ценой по запросу${shipKnown ? '' : ' и без доставки'} — их посчитаем в чате.`;
     }
+    if (shipKnown && byIndex()) return 'Доставка — по тарифу Почты России' + (D.postExample ? ' (для примера — отправка из Москвы).' : '.');
     if (shipKnown) return D.MODE === 'demo' ? 'Цена доставки — пример: включён демо-режим.' : '';
     return 'Доставка считается отдельно — зависит от города.';
   }
@@ -391,8 +411,8 @@ window.Cart = (function () {
     const m = svc && D.method(state.delivery, state.method);
     return `
       <p class="cart-step__label"><i>1</i> Доставка ${D.MODE === 'demo' ? demoBadge : ''}</p>
-      ${D.MODE === 'demo' ? `<p class="cart-demo__note">Так доставка будет работать после договоров со СДЭК и Почтой России.
-        Пункты на карте, цены и сроки сейчас — примеры.</p>` : ''}
+      ${D.MODE === 'demo' ? `<p class="cart-demo__note">Так доставка будет работать после договора со СДЭК: пункты на карте,
+        цены и сроки СДЭК сейчас — примеры. Почта России считается по настоящим тарифам${D.postExample ? ' (для примера — отправка из Москвы)' : ''}.</p>` : ''}
       <div class="cart-ship">
         ${D.SERVICES.map((s) => `
           <button type="button" class="cart-ship__opt${s.id === state.delivery ? ' is-active' : ''}" data-cart-ship="${s.id}" aria-pressed="${s.id === state.delivery}">
@@ -404,14 +424,21 @@ window.Cart = (function () {
           ${svc.methods.map((x) => `
             <button type="button" class="cart-seg__opt${x.id === m.id ? ' is-active' : ''}" data-cart-method="${x.id}" aria-pressed="${x.id === m.id}">${x.label}</button>`).join('')}
         </div>
+        ${byIndex() ? `
+        <div class="cart-addr cart-addr--index">
+          <label class="cart-field"><span>Город</span>
+            <input type="text" id="cartCity" maxlength="60" autocomplete="address-level2" placeholder="Например, Казань" value="${esc(state.city)}"></label>
+          <label class="cart-field"><span>Индекс</span>
+            <input type="text" id="cartIndex" inputmode="numeric" maxlength="6" autocomplete="postal-code" placeholder="420015" value="${esc(state.index)}"></label>
+        </div>` : `
         <div class="cart-city">
           <label class="cart-field">
             <span>Город</span>
             <input type="text" id="cartCity" maxlength="60" placeholder="Например, Казань" value="${esc(state.city)}"
-              ${smart ? 'autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="cartSug"' : 'autocomplete="address-level2"'}>
+              ${byMap() ? 'autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="cartSug"' : 'autocomplete="address-level2"'}>
           </label>
-          ${smart ? '<ul class="cart-sug" id="cartSug" role="listbox" aria-label="Подсказки города" hidden></ul>' : ''}
-        </div>
+          ${byMap() ? '<ul class="cart-sug" id="cartSug" role="listbox" aria-label="Подсказки города" hidden></ul>' : ''}
+        </div>`}
         <div data-ship-more>${moreHTML()}</div>
         <p class="cart-quote" data-quote aria-live="polite">${quoteHTML()}</p>` : ''}
       <p class="cart-step__need" role="alert"></p>`;
@@ -431,7 +458,11 @@ window.Cart = (function () {
         </div>
         <p class="cart-hint">Имя и телефон для курьера спросим в чате.</p>`;
     }
-    if (!smart) {
+    if (byIndex()) {
+      return `<p class="cart-hint">Индекс — номер почтового отделения, где удобно получить посылку.
+        Не знаешь его — <a href="https://www.pochta.ru/offices" target="_blank" rel="noopener">найди на сайте Почты</a>.</p>`;
+    }
+    if (!byMap()) {
       return `<p class="cart-hint">${state.delivery === 'post' ? 'Ближайшее отделение' : 'Удобный пункт выдачи'} подберём вместе в чате.</p>`;
     }
     if (state.point) {
@@ -449,13 +480,30 @@ window.Cart = (function () {
 
   // Строка с ценой и сроком доставки
   function quoteHTML() {
-    if (!smart) return 'Стоимость доставки посчитаем в чате — зависит от города и способа.';
+    if (byIndex()) return postQuoteHTML();
+    if (!byMap()) return 'Стоимость доставки посчитаем в чате — зависит от города и способа.';
     if (!state.cityId) return 'Выбери город — посчитаем стоимость и срок.';
     if (quoteNow.status === 'loading') return '<span class="cart-quote__wait">Считаем доставку…</span>';
     if (quoteNow.status === 'error') return 'Не получилось посчитать доставку — посчитаем в чате.';
     if (quoteNow.status !== 'ok') return '';
     const days = daysText(quoteNow.days);
     return `Доставка: <b>${rub(quoteNow.price)}</b>${days ? ' · ' + days : ''}`;
+  }
+
+  // То же для Почты России: цена и срок по индексу, а для «в отделение» — ещё и адрес отделения от Почты
+  function postQuoteHTML() {
+    if (!indexOk()) return 'Введи индекс — посчитаем стоимость и срок по тарифам Почты России.';
+    if (quoteNow.status === 'loading') return '<span class="cart-quote__wait">Считаем по тарифам Почты…</span>';
+    if (quoteNow.status === 'error') {
+      return quoteNow.reason === 'heavy' ? 'Посылка тяжелее, чем принимает Почта, — доставку посчитаем в чате.'
+        : quoteNow.reason === 'slow' ? 'Почта не отвечает — доставку посчитаем в чате.'
+        : 'Почта не нашла этот индекс или не возит туда — проверь его или напиши нам в Telegram.';
+    }
+    if (quoteNow.status !== 'ok') return '';
+    const o = state.method === 'pvz' && quoteNow.office;
+    const days = daysText(quoteNow.days);
+    return (o ? `<span class="cart-quote__office">${ICON_PIN}<span>Отделение ${esc(state.index)} · ${esc(o.name)}, ${esc(o.address)}</span></span>` : '') +
+      `Доставка: <b>${rub(quoteNow.price)}</b>${days ? ' · ' + days : ''}`;
   }
 
   // Итог под списком товаров: «Товары / Доставка / Итого»
@@ -572,7 +620,7 @@ window.Cart = (function () {
   }
 
   function openPoints() {
-    if (!smart || !state.cityId) return;
+    if (!byMap() || !state.cityId) return;
     const key = state.delivery + '|' + state.cityId;
     pending = state.point ? state.point.id : '';
     if (spots.key !== key || spots.status === 'error') {
@@ -693,7 +741,7 @@ window.Cart = (function () {
     if (!list.length) view = 'list';                 // корзину очистили — возвращаемся к списку
     const t = totals(list);
     if (view === 'pay' && !payMethod(t).online) view = 'checkout';   // онлайн-оплата стала недоступна
-    if (view === 'points' && !(smart && state.cityId && state.method === 'pvz')) view = 'checkout';
+    if (view === 'points' && !(byMap() && state.cityId && state.method === 'pvz')) view = 'checkout';
     if (view !== 'list' && !orderNo) orderNo = newOrderNo();
     if (view !== 'list') requestQuote();
     const v = VIEWS[view](list, t);
@@ -872,7 +920,7 @@ window.Cart = (function () {
   // Город уже вписан, а номера в справочнике службы нет (сменили службу) — ищем его по названию
   function resolveCity() {
     const name = state.city, sid = state.delivery;
-    if (!smart || !name || !sid) return;
+    if (!byMap() || !name || !sid) return;
     D.cities(sid, name).then((list) => {
       const c = (list || []).find((x) => norm(x.name) === norm(name));
       if (!c || state.delivery !== sid || state.city !== name || state.cityId) return;
@@ -923,14 +971,25 @@ window.Cart = (function () {
 
   function onCityInput(input) {
     state.city = clean(input.value, 60);
-    if (smart && state.cityId) {                     // город поменяли руками — прежний выбор больше не действует
+    if (byMap() && state.cityId) {                   // город поменяли руками — прежний выбор больше не действует
       state.cityId = '';
       state.point = null;
       requestQuote();
       paintMore();
       paintQuote();
     }
-    if (smart) searchCity();
+    if (byMap()) searchCity();
+  }
+
+  // Почтовый индекс: только цифры; набрали все 6 — спрашиваем у Почты цену и срок
+  function onIndexInput(input) {
+    const v = input.value.replace(/\D/g, '').slice(0, 6);
+    if (v !== input.value) input.value = v;
+    if (v === state.index) return;
+    state.index = v;
+    if (indexOk()) needShip('');
+    requestQuote();
+    paintQuote();
   }
 
   function pickCity(i) {
@@ -948,9 +1007,16 @@ window.Cart = (function () {
   // «Оплатить», а доставка заполнена не до конца — показываем, чего не хватает
   function missing() {
     if (!state.delivery) return ['Выбери службу доставки — СДЭК или Почта России', ''];
-    if (!state.city || (smart && !state.cityId)) return [smart ? 'Выбери город из подсказок' : 'Укажи город', '#cartCity'];
+    if (byIndex()) {
+      if (!indexOk()) return ['Укажи почтовый индекс — 6 цифр', '#cartIndex'];
+      if (quoteNow.status === 'error' && quoteNow.reason === 'index' && quoteNow.key === quoteKey()) {
+        return ['Почта не нашла этот индекс — проверь его', '#cartIndex'];
+      }
+    } else if (!state.city || (byMap() && !state.cityId)) {
+      return [byMap() ? 'Выбери город из подсказок' : 'Укажи город', '#cartCity'];
+    }
     if (state.method === 'door' && !state.street) return ['Укажи улицу и дом — куда привезти заказ', '#cartStreet'];
-    if (state.method === 'pvz' && smart && !state.point) {
+    if (state.method === 'pvz' && byMap() && !state.point) {
       return [(state.delivery === 'post' ? 'Выбери отделение' : 'Выбери пункт выдачи') + ' на карте', '[data-cart-points]'];
     }
     return null;
@@ -1025,13 +1091,14 @@ window.Cart = (function () {
     if (id === 'cartCity') onCityInput(e.target);
     else if (id === 'cartStreet') { state.street = clean(e.target.value, 120); if (state.street) needShip(''); }
     else if (id === 'cartFlat') state.flat = clean(e.target.value, 20);
+    else if (id === 'cartIndex') onIndexInput(e.target);
     else return;
     save();
     syncSendLink();
   });
 
   root.addEventListener('focusin', (e) => {
-    if (e.target.id === 'cartCity' && smart && !state.cityId) searchCity();
+    if (e.target.id === 'cartCity' && byMap() && !state.cityId) searchCity();
   });
   root.addEventListener('focusout', (e) => {
     if (e.target.id !== 'cartCity') return;

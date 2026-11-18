@@ -1677,6 +1677,11 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 .cart-quote b { color: var(--white); font-family: var(--f-display); font-style: italic; font-weight: 900; font-size: 20px; }
 .cart-quote__wait { animation: cart-pulse .8s ease-in-out infinite alternate; }
+/* отделение Почты, которое нашлось по индексу */
+.cart-quote__office { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 6px; color: var(--white); font-size: 13.5px; }
+.cart-quote__office svg { flex: none; width: 16px; height: 16px; margin-top: 1px; color: var(--ice); }
+.cart-hint a { color: var(--ice); text-decoration: underline; text-underline-offset: 2px; }
+.cart-addr.cart-addr--index { grid-template-columns: minmax(0, 1fr) 116px; }   /* город + индекс: 6 цифр должны влезать целиком */
 @keyframes cart-pulse {
   from { opacity: .4; }
   to   { opacity: 1; }

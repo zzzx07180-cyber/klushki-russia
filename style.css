@@ -1926,6 +1926,20 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .cart-done .cart__clear { margin-top: 6px; color: var(--ice); }
 
 /* узкие телефоны: поля окна поменьше */
+/* телефон, экран «Оформление»: кнопка «Оплатить» не прилеплена к низу экрана, а стоит в конце страницы
+   (просьба владельца 2026-11-18) — прокручивается всё окно, шапка окна остаётся наверху */
+@media (max-width: 520px) {
+  .cart__panel.is-flow { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .cart__panel.is-flow .cart__head { position: sticky; top: 0; }
+  .cart__panel.is-flow .cart__body { flex: none; overflow: visible; padding-bottom: 6px; }
+  .cart__panel.is-flow .cart__foot {
+    flex: none;
+    padding-bottom: 72px;                    /* запас: на iPhone низ окна может уходить под панель браузера */
+    background: none;
+    border-top: 0;
+    box-shadow: none;
+  }
+}
 @media (max-width: 520px) {
   .cart__panel { border-left: 0; }
   .cart__head { padding-left: 16px; }

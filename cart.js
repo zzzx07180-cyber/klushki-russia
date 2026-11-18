@@ -763,7 +763,10 @@ window.Cart = (function () {
     el.foot.innerHTML = v.foot;
     el.body.classList.toggle('is-fresh', fresh);
     el.body.classList.toggle('is-points', view === 'points');
-    if (fresh) el.body.scrollTop = 0;
+    // на телефоне в «Оформлении» кнопка «Оплатить» не прилеплена к низу, а стоит в конце страницы:
+    // тогда прокручивается всё окно целиком (style.css, .cart__panel.is-flow)
+    panel.classList.toggle('is-flow', view === 'checkout');
+    if (fresh) { el.body.scrollTop = 0; panel.scrollTop = 0; }
     fresh = false;
     if (view === 'points') mountMap();
     // нажатую кнопку могли только что стереть (например, «×» у товара) — возвращаем фокус в окно
@@ -778,8 +781,11 @@ window.Cart = (function () {
   }
 
   // Перерисовать текущий экран, не сбивая прокрутку и кнопку, на которой стоял фокус
+  // что сейчас прокручивается: всё окно (телефон, «Оформление») или только его середина
+  const scroller = () => getComputedStyle(panel).overflowY === 'auto' ? panel : el.body;
+
   function renderKeep() {
-    const top = el.body.scrollTop;
+    const top = scroller().scrollTop;
     const a = document.activeElement;
     let again = '';
     if (a && root.contains(a)) {
@@ -789,7 +795,7 @@ window.Cart = (function () {
       });
     }
     render();
-    el.body.scrollTop = top;
+    scroller().scrollTop = top;
     const target = again && root.querySelector(again);
     if (target) target.focus({ preventScroll: true });
   }

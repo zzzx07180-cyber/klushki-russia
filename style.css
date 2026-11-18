@@ -1517,6 +1517,16 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 .cart-pm__tg { flex: none; display: grid; color: var(--ice); }
 .cart-pm__why { margin-top: 10px; font-size: 13.5px; }
+.cart-pm__intro { margin: -2px 0 12px; line-height: 1.45; }
+.cart-vk {                                   /* «VK» — надпись вместо логотипа ВКонтакте */
+  display: inline-block;
+  font-family: var(--f-display);
+  font-style: italic;
+  font-weight: 900;
+  font-size: 17px;
+  line-height: 1;
+  letter-spacing: .5px;
+}
 
 /* ----- Доставка: способ, город, адрес, пункт выдачи, цена (delivery.js) ----- */
 /* «Демо» — доставка показана на примерах (режим demo в delivery.js) */

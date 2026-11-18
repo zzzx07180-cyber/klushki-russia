@@ -7,13 +7,18 @@
 // Значок корзины стоит в шапке каждой страницы (кнопка #cartBtn), а выдвижное окно этот скрипт
 // создаёт сам — править его нужно только здесь. Оформление — в style.css, блок «КОРЗИНА».
 //
-// Экраны окна: «Корзина» (список) → «Оформление» (доставка, способ оплаты, итог) →
-// «Оплата» (окно оплаты картой / СБП) → «Готово» (текст заказа для Telegram).
+// Экраны окна: «Корзина» (список) → «Оформление» (доставка, где оформить заказ, итог) →
+// «Готово» (текст заказа для Telegram / ВКонтакте).
 // Из «Оформления» можно открыть «Пункты на карте» — выбрать пункт выдачи / отделение почты.
 // Всё про службы доставки, города, пункты и цены — в delivery.js (он подключается перед этим файлом).
-// ⚠️ Онлайн-оплата пока НЕ подключена: окно оплаты уже нарисовано, но деньги не списываются —
-// в нём честно написано «скоро» и предложено отправить заказ в Telegram. Когда подключим платёжный
-// сервис (банк), в экране «Оплата» вместо этой надписи появится переход на защищённую страницу банка:
+//
+// ⚠️ Сайт — ВИТРИНА (с 2026-11-19): оплаты на сайте нет. В шаге «Оплата» покупатель выбирает,
+// где оформить заказ — в Telegram или ВКонтакте, — корзина собирает текст заказа и открывает чат,
+// а как оплатить, договариваемся в переписке. Адреса Telegram и ВКонтакте — в начале shop.js.
+// Окно оплаты картой / СБП (экран «Оплата», payView) сохранено, но выключено: ONLINE_PAY = false.
+// Поставить ONLINE_PAY = true — и вернутся способы «Картой онлайн» и «СБП», кнопка «Оплатить N ₽»
+// и окно оплаты. Деньги в нём по-прежнему не списываются (честно написано «скоро»); когда подключим
+// платёжный сервис банка, вместо этой надписи появится переход на защищённую страницу банка:
 // данные карты покупатель будет вводить там, а не на нашем сайте.
 
 window.Cart = (function () {
@@ -30,13 +35,22 @@ window.Cart = (function () {
   const byIndex = () => state.delivery === 'post' && D.postCalc;
   const byMap = () => smart && !byIndex();
   const indexOk = () => /^\d{6}$/.test(state.index);
-  // Способы оплаты. online: true — оплата на сайте (окно «Оплата»), false — договариваемся в чате.
+  // Оплата на сайте: false — витрина, заказ оформляем в Telegram / ВКонтакте (так сейчас);
+  // true — вернуть окно оплаты картой / СБП (подробно — в начале файла).
+  const ONLINE_PAY = false;
+  // Способы оплаты. online: true — оплата на сайте (окно «Оплата»); chat — оформляем в переписке:
+  // tg — в Telegram, vk — во ВКонтакте. off — вариант виден, но выбрать нельзя (ВКонтакте, пока нет адреса).
   // chips — значки платёжных систем справа (просто надписи, без чужих логотипов).
+  // Пока ONLINE_PAY = false, способов с online: true в списке нет.
   const PAYMENT = [
     { id: 'card', label: 'Картой онлайн', note: 'Карта МИР',                     chips: ['МИР'], online: true, inText: 'картой онлайн' },
-    { id: 'sbp',  label: 'СБП',           note: 'По QR-коду в приложении банка', chips: ['СБП'],               online: true, inText: 'СБП' },
-    { id: 'chat', label: 'Через Telegram', note: 'Оформить в Telegram',          chips: [],                    online: false, inText: 'обсудим в чате' }
-  ];
+    { id: 'sbp',  label: 'СБП',           note: 'По QR-коду в приложении банка', chips: ['СБП'], online: true, inText: 'СБП' },
+    { id: 'chat', label: 'Telegram',  chat: 'tg', where: 'в Telegram', note: S.TELEGRAM_NAME || 'Оформить в Telegram', inText: 'обсудим в чате' },
+    { id: 'vk',   label: 'ВКонтакте', chat: 'vk', where: 'во ВКонтакте', note: S.VK ? 'Отправишь заказ в сообщения' : 'Скоро',
+      inText: 'обсудим в чате', off: !S.VK }
+  ].filter((m) => ONLINE_PAY || !m.online);
+  const FIRST_PAY = PAYMENT.find((m) => !m.off).id;   // что выбрано, пока покупатель ничего не менял
+  const TG_PAY = PAYMENT.find((m) => m.chat === 'tg');
   const WORDS = ['товар', 'товара', 'товаров'];
   const DAYS = ['день', 'дня', 'дней'];
 
@@ -54,6 +68,7 @@ window.Cart = (function () {
   const ICON_DONE = '<svg class="cart-done__icon" viewBox="0 0 96 96" fill="none" aria-hidden="true"><circle class="cart-done__ring" cx="48" cy="48" r="42" stroke-width="4"/><path class="cart-done__check" d="M30 49.5 43 62l24-27" stroke-width="6"/></svg>';
   const ICON_LOCK = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="1.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>';
   const ICON_SOON = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>';
+  const ICON_VK = '<b class="cart-vk" aria-hidden="true">VK</b>';   // надпись, а не логотип
   const ICON_PIN = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6.5-6.2-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.8" r="2.4"/></svg>';
 
   // ----- Что лежит в корзине -----
@@ -62,7 +77,7 @@ window.Cart = (function () {
   // city / cityId — город (название и номер в справочнике службы), index — почтовый индекс (для Почты),
   // point — выбранный пункт (на карте), pointText — пункт СДЭК, вписанный покупателем вручную,
   // street / flat — адрес для курьера, pay — способ оплаты.
-  const state = { items: [], delivery: '', method: 'pvz', city: '', cityId: '', index: '', point: null, pointText: '', street: '', flat: '', pay: 'card' };
+  const state = { items: [], delivery: '', method: 'pvz', city: '', cityId: '', index: '', point: null, pointText: '', street: '', flat: '', pay: FIRST_PAY };
 
   function load() {
     try {
@@ -80,7 +95,7 @@ window.Cart = (function () {
       state.street = clean(d.street, 120);
       state.pointText = clean(d.pointText, 150);
       state.flat = clean(d.flat, 20);
-      state.pay = PAYMENT.some((x) => x.id === d.pay) ? d.pay : 'card';
+      state.pay = PAYMENT.some((x) => x.id === d.pay && !x.off) ? d.pay : FIRST_PAY;
     } catch (e) { /* хранилище выключено (режим «инкогнито») — корзина проживёт до закрытия страницы */ }
   }
   function save() {
@@ -107,12 +122,13 @@ window.Cart = (function () {
     return { count: list.length, sum: priced.reduce((s, p) => s + p.price, 0), ask: list.length - priced.length };
   }
 
-  // Оплатить на сайте можно, только когда у всех товаров есть цена: «цену по запросу» сначала уточняем в чате
-  const canPayOnline = (t) => t.count > 0 && t.ask === 0 && t.sum > 0;
+  // Оплатить на сайте можно, только когда оплата включена (ONLINE_PAY) и у всех товаров есть цена:
+  // «цену по запросу» сначала уточняем в чате
+  const canPayOnline = (t) => ONLINE_PAY && t.count > 0 && t.ask === 0 && t.sum > 0;
   // Какой способ оплаты действует сейчас: онлайн недоступен — значит, через Telegram
   function payMethod(t) {
-    const m = PAYMENT.find((x) => x.id === state.pay) || PAYMENT[0];
-    return m.online && !canPayOnline(t) ? PAYMENT.find((x) => !x.online) : m;
+    const m = PAYMENT.find((x) => x.id === state.pay && !x.off) || PAYMENT.find((x) => !x.off);
+    return m.online && !canPayOnline(t) ? TG_PAY : m;
   }
 
   // Номер заказа — чтобы покупателю и нам было на что ссылаться в переписке. Появляется на экране
@@ -293,7 +309,7 @@ window.Cart = (function () {
       lines.push(how + rub(cost) + (days ? ', ' + days : '') + note);
       if (t.sum) lines.push('Всего с доставкой: ' + price(t.sum + cost) + (t.ask ? ' (без товаров с ценой по запросу)' : ''));
     }
-    lines.push('Способ оплаты: ' + payMethod(t).inText);
+    if (ONLINE_PAY) lines.push('Способ оплаты: ' + payMethod(t).inText);   // у витрины выбора нет — об оплате договоримся в чате
     return lines.join('\n').trim();
   }
 
@@ -328,6 +344,7 @@ window.Cart = (function () {
   let view = 'list';
   let fresh = false;      // экран только что сменился — содержимое плавно появляется
   let copied = false;     // получилось ли скопировать текст заказа
+  let sentVia = 'tg';     // куда покупатель отправил заказ: tg — Telegram, vk — ВКонтакте
 
   // ----- Экран «Корзина» -----
   function itemHTML(p) {
@@ -401,9 +418,13 @@ window.Cart = (function () {
     };
   }
 
-  // Ссылка «отправить заказ в Telegram»: копирует текст заказа и показывает экран «Готово»
-  const sendLink = (label, cls) =>
-    `<a href="${esc(S.telegramLink(message()))}" class="${cls}" target="_blank" rel="noopener" data-cart-send>${label}</a>`;
+  // Куда ведёт кнопка: Telegram — сразу с текстом заказа в поле сообщения (если он поместился в ссылку),
+  // ВКонтакте — просто в чат (текст туда покупатель вставляет сам: мы его копируем)
+  const chatLink = (ch, text) => ch === 'vk' ? S.VK : S.telegramLink(text);
+  // Ссылка «отправить заказ в Telegram / ВКонтакте»: копирует текст заказа и показывает экран «Готово».
+  // ch — куда: tg или vk
+  const sendLink = (label, cls, ch) =>
+    `<a href="${esc(chatLink(ch || 'tg', message()))}" class="${cls}" target="_blank" rel="noopener" data-cart-send="${ch || 'tg'}">${label}</a>`;
 
   // ----- Экран «Оформление», шаг 1: доставка -----
   const demoBadge = '<span class="cart-demo">Демо</span>';
@@ -541,20 +562,22 @@ window.Cart = (function () {
 
         <section class="cart-step">
           <p class="cart-step__label"><i>2</i> Оплата</p>
+          ${ONLINE_PAY ? '' : `<p class="cart-step__text cart-pm__intro">Оплата — после подтверждения в переписке. Отправь нам заказ:
+            проверим наличие, пришлём живые фото и расскажем, как оплатить. Где удобнее?</p>`}
           <div class="cart-pm">
             ${PAYMENT.map((m) => {
-              const off = m.online && !online;
+              const off = m.off || (m.online && !online);
               const on = m.id === pm.id;
               return `
               <button type="button" class="cart-pm__opt${on ? ' is-active' : ''}" data-cart-pay="${m.id}" aria-pressed="${on}"${off ? ' disabled' : ''}>
                 <span class="cart-pm__dot" aria-hidden="true"></span>
-                <span class="cart-pm__text"><b>${m.label}</b><small>${m.note}</small></span>
-                ${m.chips.length ? `<span class="cart-pm__chips" aria-hidden="true">${m.chips.map((c) => `<i>${c}</i>`).join('')}</span>`
-                  : `<span class="cart-pm__tg" aria-hidden="true">${ICON_TG}</span>`}
+                <span class="cart-pm__text"><b>${m.label}</b><small>${esc(m.note)}</small></span>
+                ${m.chips ? `<span class="cart-pm__chips" aria-hidden="true">${m.chips.map((c) => `<i>${c}</i>`).join('')}</span>`
+                  : `<span class="cart-pm__tg" aria-hidden="true">${m.chat === 'vk' ? ICON_VK : ICON_TG}</span>`}
               </button>`;
             }).join('')}
           </div>
-          ${online ? '' : `<p class="cart-step__text cart-pm__why">У ${t.count === 1 ? 'товара' : 'части товаров'} цена по запросу —
+          ${!ONLINE_PAY || online ? '' : `<p class="cart-step__text cart-pm__why">У ${t.count === 1 ? 'товара' : 'части товаров'} цена по запросу —
             сначала уточним её в Telegram, потом расскажем, как оплатить.</p>`}
         </section>
 
@@ -568,7 +591,7 @@ window.Cart = (function () {
       foot: pm.online
         ? `<button type="button" class="btn cart__cta" data-cart-go="pay">${ICON_LOCK} Оплатить ${price(toPay)}</button>
            ${sendLink('Есть вопрос? Написать в Telegram', 'cart__alt')}`
-        : `${sendLink(ICON_TG + ' Отправить заказ в Telegram', 'btn cart__cta')}
+        : `${sendLink((pm.chat === 'vk' ? ICON_VK : ICON_TG) + ' Отправить заказ ' + pm.where, 'btn cart__cta', pm.chat)}
            <p class="cart__note cart__note--center">Заказ соберётся в одно сообщение — ответим, пришлём живые фото и расскажем, как оплатить.</p>`
     };
   }
@@ -674,6 +697,7 @@ window.Cart = (function () {
   }
 
   // ----- Экран «Оплата» -----
+  // ⚠️ Сейчас выключен (ONLINE_PAY = false, сайт — витрина), но сохранён — чтобы вернуться к нему позже.
   // Окно оплаты: сумма, номер заказа, способ. Приём платежей ещё не подключён — честно пишем «скоро»
   // и предлагаем отправить заказ в Telegram. Когда подключим банк — здесь будет кнопка перехода
   // на его защищённую страницу оплаты (см. начало файла).
@@ -719,12 +743,15 @@ window.Cart = (function () {
   // ----- Экран «Готово» -----
   function doneView() {
     const msg = message();
-    const prefilled = S.telegramLink(msg) !== S.TELEGRAM;   // текст сам подставился в чат
+    const vk = sentVia === 'vk';
+    const app = vk ? 'ВКонтакте' : 'Telegram';
+    const prefilled = !vk && S.telegramLink(msg) !== S.TELEGRAM;   // текст сам подставился в чат
     const text = prefilled
-      ? 'Текст заказа уже в поле сообщения Telegram — осталось нажать «Отправить». Если поле пустое — вставь текст: мы его скопировали.'
+      ? 'Текст заказа уже в поле сообщения Telegram — осталось нажать «Отправить». Если поле пустое — вставь текст' +
+        (copied ? ': мы его скопировали.' : ' ниже.')
       : copied
-        ? 'Мы скопировали текст заказа. Вставь его в чат Telegram и отправь — ответим и подтвердим доставку.'
-        : 'Скопируй текст заказа, вставь его в чат Telegram и отправь — ответим и подтвердим доставку.';
+        ? `Мы скопировали текст заказа. Вставь его в чат ${app} и отправь — ответим и подтвердим доставку.`
+        : `Скопируй текст заказа, вставь его в чат ${app} и отправь — ответим и подтвердим доставку.`;
     return {
       title: 'Готово',
       body: `
@@ -738,7 +765,7 @@ window.Cart = (function () {
           <button type="button" class="cart__clear" data-cart-finish>Да — очистить корзину</button>
         </div>`,
       foot: `
-        <a href="${esc(S.telegramLink(msg))}" class="btn cart__cta" target="_blank" rel="noopener">${ICON_TG} Открыть Telegram</a>
+        <a href="${esc(chatLink(sentVia, msg))}" class="btn cart__cta" target="_blank" rel="noopener">${vk ? ICON_VK : ICON_TG} Открыть ${app}</a>
         <button type="button" class="cart__alt" data-cart-copy>${copied ? 'Скопировать текст ещё раз' : 'Скопировать текст'}</button>`
     };
   }
@@ -897,9 +924,10 @@ window.Cart = (function () {
     });
   }
 
-  // «Отправить в Telegram»: копируем текст и показываем экран «Готово».
-  // Саму ссылку не останавливаем — Telegram откроется в новой вкладке.
-  function send() {
+  // «Отправить в Telegram / ВКонтакте»: копируем текст и показываем экран «Готово».
+  // Саму ссылку не останавливаем — чат откроется в новой вкладке.
+  function send(ch) {
+    sentVia = ch === 'vk' ? 'vk' : 'tg';
     S.copyText(message()).then((ok) => setTimeout(() => { copied = ok; show('done'); }, 0));
   }
 
@@ -910,9 +938,10 @@ window.Cart = (function () {
     });
   }
 
+  // Покупатель дописал адрес — обновляем текст заказа в ссылке на Telegram (у ВКонтакте текста в ссылке нет)
   function syncSendLink() {
     const href = S.telegramLink(message());
-    root.querySelectorAll('[data-cart-send]').forEach((a) => { a.href = href; });
+    root.querySelectorAll('[data-cart-send="tg"]').forEach((a) => { a.href = href; });
   }
 
   // ----- Выбор доставки -----
@@ -1061,7 +1090,8 @@ window.Cart = (function () {
     show('pay');
   }
 
-  // Способ оплаты: подсвечиваем выбранный и меняем главную кнопку внизу («Оплатить» или «Отправить в Telegram»)
+  // Способ оплаты: подсвечиваем выбранный и меняем главную кнопку внизу
+  // («Оплатить», «Отправить заказ в Telegram» или «… во ВКонтакте»)
   function pickPay(id) {
     state.pay = id;
     save();
@@ -1092,13 +1122,13 @@ window.Cart = (function () {
     else if ('cartPoint' in d) pickPoint(d.cartPoint, true);
     else if ('cartPointOk' in d) confirmPoint();
     else if ('cartPay' in d) pickPay(d.cartPay);
-    else if ('cartSend' in d) send();
+    else if ('cartSend' in d) send(d.cartSend);
     else if ('cartCopy' in d) copyAgain(t);
     else if ('cartShop' in d) goShopping();
     else if ('cartFinish' in d) {
       clear(false);
       hide();
-      S.showToast('Спасибо за заказ! Ответим в Telegram');
+      S.showToast('Спасибо за заказ! Ответим ' + (sentVia === 'vk' ? 'во ВКонтакте' : 'в Telegram'));
     }
   });
 

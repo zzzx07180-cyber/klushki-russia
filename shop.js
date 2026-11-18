@@ -1,9 +1,19 @@
 // ===== Общий код магазина =====
 // Нужен каталогу (catalog.js), странице товара (product.js) и корзине (cart.js):
-// названия разделов, форматирование цены, характеристики, ссылка в Telegram, копирование текста.
+// названия разделов, форматирование цены, характеристики, ссылки на Telegram и ВКонтакте, копирование текста.
 
 window.Shop = (function () {
-  const TELEGRAM = 'https://t.me/';
+  // ----- Где с нами связаться и оформить заказ -----
+  // TELEGRAM — адрес чата: https://t.me/имя (имя без @).
+  // VK — полный адрес страницы ВКонтакте, например 'https://vk.com/klushki' (или сразу сообщения:
+  // 'https://vk.me/klushki'). Пока VK пустой, кнопок ВКонтакте на сайте не видно, а в корзине
+  // вариант «ВКонтакте» серый с пометкой «скоро». Впишешь адрес — всё появится само.
+  const TELEGRAM = 'https://t.me/kucher18';
+  const VK = '';
+  const tgName = (TELEGRAM.match(/t\.me\/(\w{3,})/) || [])[1];
+  const TELEGRAM_NAME = tgName ? '@' + tgName : '';           // «@kucher18» — для подписей
+  // «в Telegram» или «в Telegram или ВКонтакте» — для подсказок на страницах
+  const CHATS_TEXT = VK ? 'Telegram или ВКонтакте' : 'Telegram';
 
   // one — как назвать один товар раздела, если у него нет названия модели
   const CATEGORIES = [
@@ -90,11 +100,12 @@ window.Shop = (function () {
   }
 
   // ----- Telegram и копирование текста -----
-  // Ссылка на чат. Когда в адресе Telegram стоит настоящее имя (t.me/имя), текст сам появляется
-  // в поле сообщения — покупателю остаётся нажать «Отправить». Пока имя условное (просто t.me/),
-  // так не получится, поэтому текст ещё и копируется: его можно вставить в чат.
+  // Ссылка на чат. В адресе Telegram стоит имя (t.me/имя) — поэтому текст сам появляется
+  // в поле сообщения, покупателю остаётся нажать «Отправить». На всякий случай текст ещё и
+  // копируется: если поле окажется пустым, его можно вставить в чат.
   // Длинный текст (больше 1500 знаков) в ссылку не кладём — Telegram его обрежет.
-  const TELEGRAM_HAS_NAME = /t\.me\/\w{3,}/.test(TELEGRAM);
+  // ВКонтакте так не умеет: туда текст заказа только копируем.
+  const TELEGRAM_HAS_NAME = !!TELEGRAM_NAME;
   function telegramLink(text) {
     return TELEGRAM_HAS_NAME && text && text.length <= 1500
       ? TELEGRAM + '?text=' + encodeURIComponent(text)
@@ -145,9 +156,13 @@ window.Shop = (function () {
   }
 
   function order(p) {
-    copyText(orderMessage(p)).then((ok) => showToast(ok
-      ? 'Текст скопирован — вставь его в чат Telegram и отправь'
-      : 'Открываем Telegram — напиши, какой товар тебя интересует'));
+    const text = orderMessage(p);
+    const filled = telegramLink(text) !== TELEGRAM;          // текст сам подставится в поле сообщения
+    copyText(text).then((ok) => showToast(filled
+      ? 'Открываем Telegram — текст уже в поле сообщения, осталось отправить'
+      : ok
+        ? 'Текст скопирован — вставь его в чат Telegram и отправь'
+        : 'Открываем Telegram — напиши, какой товар тебя интересует'));
     // саму ссылку не останавливаем: Telegram откроется в новой вкладке
   }
 
@@ -170,8 +185,17 @@ window.Shop = (function () {
     });
   }
 
+  // Кнопки и подписи ВКонтакте в разметке страниц (атрибут data-vk, сначала спрятаны):
+  // показываем, только когда адрес VK вписан; у ссылок заодно ставим этот адрес
+  if (VK) {
+    document.querySelectorAll('[data-vk]').forEach((el) => {
+      if (el.tagName === 'A') el.href = VK;
+      el.hidden = false;
+    });
+  }
+
   return {
-    TELEGRAM, CATEGORIES, TYPES, TYPE_BADGE, REPAIRS,
+    TELEGRAM, TELEGRAM_NAME, VK, CHATS_TEXT, CATEGORIES, TYPES, TYPE_BADGE, REPAIRS,
     repairLabel, esc, price, hasPrice, category, title, photos, specsText, specsTable,
     showToast, telegramLink, copyText, productURL, orderButton, bindOrderButtons
   };

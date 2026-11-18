@@ -80,10 +80,11 @@
       <div class="pp__buttons" id="ppButtons">
         ${S.orderButton(p)}
         ${p.inStock ? `<a href="${esc(S.TELEGRAM)}" class="btn btn--dark" target="_blank" rel="noopener">Спросить в Telegram</a>` : ''}
+        ${p.inStock && S.VK ? `<a href="${esc(S.VK)}" class="btn btn--dark" target="_blank" rel="noopener">Спросить во ВКонтакте</a>` : ''}
       </div>
       <p class="pp__hint">${p.inStock
-        ? 'Добавь товар в корзину и оформи заказ: выбери доставку и способ оплаты. Есть вопрос — напиши нам в Telegram.'
-        : '«Узнать о поступлении» скопирует текст и откроет чат в Telegram — останется вставить и отправить.'}</p>
+        ? `Добавь товар в корзину, выбери доставку и отправь заказ нам в ${S.CHATS_TEXT} — подтвердим наличие и расскажем, как оплатить.`
+        : '«Узнать о поступлении» откроет чат в Telegram с готовым текстом — останется нажать «Отправить».'}</p>
 
       ${repairHTML}
 

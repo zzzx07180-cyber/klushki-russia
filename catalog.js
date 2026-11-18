@@ -71,7 +71,8 @@
       <p id="emptyText">Попробуй убрать часть фильтров — или напиши нам, найдём под заказ.</p>
       <div class="empty__actions">
         <button type="button" class="btn btn--dark" id="fResetEmpty" hidden>Сбросить фильтры</button>
-        <a href="https://t.me/" class="btn" target="_blank" rel="noopener">Написать в Telegram</a>
+        <a href="${esc(window.Shop.TELEGRAM)}" class="btn" target="_blank" rel="noopener">Написать в Telegram</a>
+        ${window.Shop.VK ? `<a href="${esc(window.Shop.VK)}" class="btn btn--dark" target="_blank" rel="noopener">Написать во ВКонтакте</a>` : ''}
       </div>
     </div>`;
 
@@ -262,7 +263,7 @@
       const name = category(state.cat).label;
       el.emptyTitle.textContent = name + ' — под заказ';
       el.emptyText.textContent = 'Сейчас в наличии нет, но подберём под твой размер и уровень игры. ' +
-        'Напиши нам в Telegram — расскажем, что есть и сколько стоит.';
+        'Напиши нам в ' + window.Shop.CHATS_TEXT + ' — расскажем, что есть и сколько стоит.';
     } else {
       el.emptyTitle.textContent = 'Ничего не нашлось';
       el.emptyText.textContent = 'Попробуй убрать часть фильтров — или напиши нам, найдём под заказ.';

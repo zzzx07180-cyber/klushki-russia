@@ -616,33 +616,38 @@ window.Cart = (function () {
   }
 
   // ----- Экран «Оплата» -----
-  // Окно оплаты: сумма, номер заказа, способ. Приём платежей ещё не подключён — честно пишем «скоро»
-  // и предлагаем отправить заказ в Telegram. Когда подключим банк — здесь будет кнопка перехода
-  // на его защищённую страницу оплаты (см. начало файла).
+  // Окно оплаты в виде строгого счёта: получатель, номер заказа, дата, суммы, способ оплаты.
+  // Приём платежей ещё не подключён — честно пишем «скоро» и предлагаем отправить заказ в Telegram.
+  // Когда подключим банк — здесь будет кнопка перехода на его защищённую страницу оплаты (см. начало файла).
   function payView(list, t) {
     const pm = payMethod(t);
     const ship = shipCost();
     const where = shipText();
+    const days = ship !== null ? daysText(quoteNow.days) : '';
+    const today = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
     return {
       title: 'Оплата',
       body: `
         <div class="cart-pay">
           <div class="cart-pay__top">
             <span class="cart-pay__secure">${ICON_LOCK} Защищённая оплата</span>
-            <span>Заказ № ${orderNo}</span>
+            ${pm.chips.length ? `<span class="cart-pm__chips" aria-hidden="true">${pm.chips.map((c) => `<i>${c}</i>`).join('')}</span>` : ''}
           </div>
-          <p class="cart-pay__label">К оплате</p>
-          <p class="cart-pay__sum">${price(t.sum + (ship || 0))}</p>
+          <dl class="cart-pay__info">
+            <div><dt>Получатель</dt><dd>КЛЮШКИ RUSSIA</dd></div>
+            <div><dt>Заказ</dt><dd>№ ${orderNo}</dd></div>
+            <div><dt>Дата</dt><dd>${today}</dd></div>
+          </dl>
           <ul class="cart-pay__rows">
-            <li><span>Товары · ${t.count}</span><b>${price(t.sum)}</b></li>
-            <li><span>Доставка${ship !== null && daysText(quoteNow.days) ? ' · ' + daysText(quoteNow.days) : ''}</span>
-              <b>${ship === null ? 'посчитаем в чате' : rub(ship)}</b></li>
+            <li><span>Товары (${t.count})</span><b>${price(t.sum)}</b></li>
+            <li><span>Доставка${days ? ', ' + days : ''}</span><b>${ship === null ? 'посчитаем в чате' : rub(ship)}</b></li>
           </ul>
-          ${where ? `<p class="cart-pay__for">${ICON_PIN}<span>${esc(where)}</span></p>` : ''}
+          <div class="cart-pay__total"><span>К оплате</span><b>${price(t.sum + (ship || 0))}</b></div>
           <div class="cart-pay__method">
             <span><b>${pm.label}</b><small>${pm.note}</small></span>
             <button type="button" data-cart-back>Изменить</button>
           </div>
+          ${where ? `<p class="cart-pay__for">${ICON_PIN}<span>${esc(where)}</span></p>` : ''}
         </div>
         <div class="cart-soon">
           ${ICON_SOON}
@@ -651,7 +656,8 @@ window.Cart = (function () {
             <p>Мы подключаем приём платежей — сейчас деньги не списываются. Отправь заказ в Telegram:
               подтвердим наличие, ${ship === null ? 'посчитаем доставку' : 'проверим доставку'} и пришлём, как оплатить.</p>
           </div>
-        </div>`,
+        </div>
+        <p class="cart-pay__legal">${ICON_LOCK}<span>Данные карты вводятся только на странице банка — наш сайт их не видит и не хранит.</span></p>`,
       foot: `
         ${sendLink(ICON_TG + ' Отправить заказ в Telegram', 'btn cart__cta')}
         <button type="button" class="cart__alt" data-cart-back>Выбрать другой способ оплаты</button>`

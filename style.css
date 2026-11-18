@@ -1360,14 +1360,12 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   text-transform: uppercase;
   letter-spacing: 2px;
 }
-.cart-step__label i {                        /* номер шага в наклонной рамке */
+.cart-step__label i {                        /* номер шага в синей наклонной плашке */
   width: 26px;
   height: 26px;
   display: grid;
   place-items: center;
-  background: rgba(30, 139, 255, .12);
-  border: 1px solid var(--accent);
-  color: var(--ice);
+  background: var(--accent);
   font-family: var(--f-display);
   font-weight: 900;
   font-size: 17px;
@@ -1386,20 +1384,21 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 .cart-ship__opt b {
   display: block;
-  font-family: var(--f-ui);
-  font-weight: 500;
-  font-size: 16px;
-  line-height: 1.2;
-  letter-spacing: 1px;
+  font-family: var(--f-display);
+  font-style: italic;
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 1.1;
   text-transform: uppercase;
 }
-.cart-ship__opt span { display: block; margin-top: 4px; color: var(--dim); font-size: 12.5px; line-height: 1.3; }
-.cart-ship__opt:hover { border-color: rgba(255, 255, 255, .4); }
-.cart-ship__opt.is-active {                  /* выбранный вариант — спокойная синяя рамка, без свечения */
-  background: rgba(30, 139, 255, .08);
+.cart-ship__opt span { display: block; margin-top: 5px; color: var(--dim); font-size: 12.5px; line-height: 1.3; }
+.cart-ship__opt:hover { border-color: var(--white); }
+.cart-ship__opt.is-active {
+  background: rgba(30, 139, 255, .2);
   border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent), 0 0 18px var(--accent-glow);
 }
+.cart-ship__opt.is-active b { color: var(--ice); }
 
 .cart-field { display: block; margin-top: 14px; }
 .cart-field > span {
@@ -1463,11 +1462,11 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   border: 1px solid var(--line);
   transition: background .15s, border-color .15s, box-shadow .15s;
 }
-.cart-pm__opt:hover:not(:disabled) { border-color: rgba(255, 255, 255, .4); }
+.cart-pm__opt:hover:not(:disabled) { border-color: var(--white); }
 .cart-pm__opt.is-active {
-  background: rgba(30, 139, 255, .08);
+  background: rgba(30, 139, 255, .2);
   border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent), 0 0 18px var(--accent-glow);
 }
 .cart-pm__opt:disabled { opacity: .4; cursor: not-allowed; }
 .cart-pm__dot {
@@ -1485,36 +1484,38 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--ice);
   transform: scale(0);
   transition: transform .2s cubic-bezier(.3, 1.6, .5, 1);
 }
-.cart-pm__opt.is-active .cart-pm__dot { border-color: var(--accent); }
+.cart-pm__opt.is-active .cart-pm__dot { border-color: var(--ice); }
 .cart-pm__opt.is-active .cart-pm__dot::after { transform: none; }
 .cart-pm__text { flex: 1; min-width: 0; }
 .cart-pm__text b {
   display: block;
-  font-family: var(--f-ui);
-  font-weight: 500;
-  font-size: 16px;
-  line-height: 1.2;
-  letter-spacing: 1px;
+  font-family: var(--f-display);
+  font-style: italic;
+  font-weight: 800;
+  font-size: 20px;
+  line-height: 1.1;
   text-transform: uppercase;
 }
+.cart-pm__opt.is-active .cart-pm__text b { color: var(--ice); }
 .cart-pm__text small { display: block; margin-top: 3px; color: var(--dim); font-size: 12.5px; line-height: 1.3; }
 .cart-pm__chips { flex: none; display: flex; gap: 4px; }
-.cart-pm__chips i {                          /* значки платёжных систем — маленькие строгие плашки */
+.cart-pm__chips i {                          /* значки платёжных систем — наклонные плашки */
   padding: 3px 6px;
+  background: rgba(255, 255, 255, .1);
   border: 1px solid rgba(255, 255, 255, .22);
-  color: var(--dim);
   font-family: var(--f-ui);
   font-style: normal;
-  font-weight: 500;
+  font-weight: 600;
   font-size: 11px;
   line-height: 1.2;
   letter-spacing: .5px;
+  transform: skewX(-10deg);
 }
-.cart-pm__tg { flex: none; display: grid; color: var(--dim); }
+.cart-pm__tg { flex: none; display: grid; color: var(--ice); }
 .cart-pm__why { margin-top: 10px; font-size: 13.5px; }
 
 /* ----- Доставка: способ, город, адрес, пункт выдачи, цена (delivery.js) ----- */
@@ -1569,8 +1570,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   transform: skewX(-8deg);
   transition: background .15s, border-color .15s, color .15s, box-shadow .15s;
 }
-.cart-seg__opt:hover:not(.is-active) { color: var(--white); border-color: rgba(255, 255, 255, .4); }
-.cart-seg__opt.is-active { background: rgba(30, 139, 255, .14); border-color: var(--accent); color: var(--white); }
+.cart-seg__opt:hover:not(.is-active) { color: var(--white); border-color: var(--white); }
+.cart-seg__opt.is-active { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 16px var(--accent-glow); }
 
 /* город и подсказки под ним */
 .cart-city { position: relative; }
@@ -1586,7 +1587,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   list-style: none;
   background: #0b1626;
   border: 1px solid var(--accent);
-  box-shadow: 0 14px 30px rgba(0, 0, 0, .55);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, .55), 0 0 18px var(--accent-glow);
 }
 .cart-sug button {
   display: flex;
@@ -1599,7 +1600,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   border-bottom: 1px solid var(--line);
 }
 .cart-sug li:last-child button { border-bottom: 0; }
-.cart-sug button:hover, .cart-sug button:focus-visible { background: rgba(30, 139, 255, .14); }
+.cart-sug button:hover, .cart-sug button:focus-visible { background: rgba(30, 139, 255, .22); }
 .cart-sug b { font-weight: 500; font-size: 15px; }
 .cart-sug small { color: var(--dim); font-size: 12px; text-align: right; }
 .cart-sug__none { padding: 12px 14px; color: var(--dim); font-size: 13.5px; line-height: 1.4; }
@@ -1617,18 +1618,17 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   width: 100%;
   margin-top: 14px;
   padding: 14px;
-  background: rgba(255, 255, 255, .03);
-  border: 1px solid rgba(255, 255, 255, .25);
-  color: var(--white);
+  background: rgba(127, 212, 255, .06);
+  border: 1px dashed var(--ice);
+  color: var(--ice);
   font-family: var(--f-ui);
-  font-weight: 500;
+  font-weight: 600;
   font-size: 14px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  transition: background .15s, border-color .15s;
+  transition: background .15s, color .15s;
 }
-.cart-pick svg { color: var(--ice); }
-.cart-pick:hover:not(:disabled) { background: rgba(255, 255, 255, .07); border-color: var(--accent); }
+.cart-pick:hover:not(:disabled) { background: rgba(127, 212, 255, .16); color: #fff; }
 .cart-pick:disabled { opacity: .4; cursor: not-allowed; }
 
 /* выбранный пункт: в оформлении (.cart-point) и внизу экрана с картой (.cart-chosen) */
@@ -1636,9 +1636,9 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .cart-point {
   margin-top: 14px;
   padding: 12px 12px 12px 14px;
-  background: rgba(255, 255, 255, .04);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
+  background: rgba(30, 139, 255, .14);
+  border: 1px solid var(--accent);
+  border-left-width: 3px;
 }
 .cart-chosen { margin-bottom: 12px; }
 .cart-point svg, .cart-chosen svg { flex: none; margin-top: 2px; color: var(--ice); }
@@ -1670,12 +1670,12 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   padding: 10px 14px;
   background: var(--black);
   border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--ice);
   color: var(--dim);
   font-size: 14px;
   line-height: 1.4;
 }
-.cart-quote b { color: var(--white); font-family: var(--f-ui); font-weight: 600; font-size: 17px; letter-spacing: .5px; }
+.cart-quote b { color: var(--white); font-family: var(--f-display); font-style: italic; font-weight: 900; font-size: 20px; }
 .cart-quote__wait { animation: cart-pulse .8s ease-in-out infinite alternate; }
 @keyframes cart-pulse {
   from { opacity: .4; }
@@ -1683,7 +1683,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 .cart-sum--sub { margin: -6px 0 8px; }
 .cart-sum--sub li { padding: 4px 0; border-bottom: 0; color: var(--dim); font-size: 14px; }
-[data-sum] .cart__total b { font-family: var(--f-ui); font-style: normal; font-weight: 600; font-size: 30px; letter-spacing: .5px; }   /* итог в оформлении — прямым шрифтом, без курсива */
 
 /* ----- Экран «Пункты на карте» ----- */
 .cart__body.is-points { padding: 0 0 18px; }
@@ -1773,13 +1772,13 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .cart-pt.is-active b { color: var(--ice); }
 
 /* ----- Экран «Оплата» ----- */
-/* Строгий «счёт на оплату», как у банков: ровный тёмный лист, тонкие линии, без свечения и курсива.
-   От стиля сайта — синяя полоса сверху и срезанный уголок. */
-.cart-pay {
+.cart-pay {                                  /* «квитанция»: сумма, номер заказа, способ */
   padding: 16px 18px 18px;
-  background: #0b121c;
-  border: 1px solid var(--line);
-  border-top: 2px solid var(--accent);
+  background:
+    radial-gradient(120% 90% at 100% 0, rgba(30, 139, 255, .3), transparent 62%),
+    linear-gradient(160deg, #10243b 0%, #08111e 100%);
+  border: 1px solid rgba(127, 212, 255, .3);
+  border-left: 3px solid var(--accent);
   clip-path: var(--cut);
 }
 .cart-pay__top {
@@ -1787,6 +1786,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  margin-bottom: 14px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
   font-family: var(--f-ui);
@@ -1795,78 +1795,78 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   letter-spacing: 1px;
   color: var(--dim);
 }
-.cart-pay__secure { display: inline-flex; align-items: center; gap: 6px; color: var(--white); }
-.cart-pay__secure svg { color: var(--ice); }
-.cart-pay__top .cart-pm__chips i { color: var(--dim); }
-
-/* реквизиты: получатель, номер заказа, дата */
-.cart-pay__info { display: grid; gap: 7px; margin: 12px 0 0; }
-.cart-pay__info div,
-.cart-pay__rows li { display: flex; justify-content: space-between; gap: 14px; font-size: 14px; }
-.cart-pay__info dt { color: var(--dim); }
-.cart-pay__info dd { margin: 0; text-align: right; }
-
-/* суммы — ровными колонками цифр */
-.cart-pay__rows { list-style: none; display: grid; gap: 7px; margin: 12px 0 0; padding-top: 12px; border-top: 1px solid var(--line); }
-.cart-pay__rows li span { color: var(--dim); }
-.cart-pay__rows b, .cart-pay__total b { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.cart-pay__rows b { font-weight: 500; }
-.cart-pay__total {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
-}
-.cart-pay__total span {
+.cart-pay__secure { display: inline-flex; align-items: center; gap: 6px; color: var(--ice); }
+.cart-pay__label {
   font-family: var(--f-ui);
-  font-weight: 500;
-  font-size: 14px;
+  font-weight: 600;
+  font-size: 13px;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
+  letter-spacing: 2px;
   color: var(--dim);
 }
-.cart-pay__total b { font-family: var(--f-ui); font-weight: 600; font-size: 32px; line-height: 1; letter-spacing: .5px; }   /* прямой шрифт: у заголовочного есть только курсив */
-
+.cart-pay__sum {
+  margin: 4px 0 6px;
+  font-family: var(--f-display);
+  font-style: italic;
+  font-weight: 900;
+  font-size: 52px;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: 0 0 24px var(--accent-glow);
+}
+.cart-pay__rows { list-style: none; margin: 10px 0 0; }
+.cart-pay__rows li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-top: 1px dashed var(--line);
+  color: var(--dim);
+  font-size: 14px;
+}
+.cart-pay__rows b { color: var(--white); font-family: var(--f-ui); font-weight: 600; letter-spacing: .5px; white-space: nowrap; }
+.cart-pay__for { display: flex; align-items: flex-start; gap: 8px; margin-top: 10px; color: var(--dim); font-size: 14px; line-height: 1.4; }
+.cart-pay__for svg { flex: none; margin-top: 1px; color: var(--ice); }
 .cart-pay__method {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 14px;
+  margin-top: 16px;
   padding: 12px;
-  background: rgba(255, 255, 255, .03);
+  background: rgba(7, 9, 13, .6);
   border: 1px solid var(--line);
 }
 .cart-pay__method > span { flex: 1; min-width: 0; }
-.cart-pay__method small { display: block; color: var(--dim); font-size: 12.5px; }
 .cart-pay__method b {
   display: block;
   font-family: var(--f-ui);
-  font-weight: 500;
-  font-size: 14px;
+  font-weight: 600;
+  font-size: 15px;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
+.cart-pay__method small { display: block; color: var(--dim); font-size: 12.5px; }
 .cart-pay__method button:hover { color: #fff; }
-.cart-pay__for { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; color: var(--dim); font-size: 13.5px; line-height: 1.4; }
-.cart-pay__for svg { flex: none; width: 16px; height: 16px; margin-top: 1px; color: var(--dim); }
-.cart-pay__legal { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; color: #7f8fa3; font-size: 12.5px; line-height: 1.45; }
-.cart-pay__legal svg { flex: none; width: 15px; height: 15px; margin-top: 1px; }
 
-/* «Онлайн-оплата скоро заработает» — пока банк не подключён: спокойная справка, а не яркая плашка */
+/* «Онлайн-оплата скоро заработает» — пока банк не подключён */
 .cart-soon {
   display: flex;
-  gap: 12px;
+  gap: 14px;
   margin-top: 14px;
   padding: 14px 16px;
-  background: rgba(255, 255, 255, .03);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--dim);
+  background: rgba(127, 212, 255, .1);
+  border: 1px dashed rgba(127, 212, 255, .45);
 }
-.cart-soon svg { flex: none; width: 22px; height: 22px; margin-top: 1px; color: var(--dim); }
-.cart-soon__title { margin-bottom: 4px; font-weight: 500; font-size: 14.5px; color: var(--white); }
+.cart-soon svg { flex: none; margin-top: 1px; color: var(--ice); }
+.cart-soon__title {
+  margin-bottom: 4px;
+  font-family: var(--f-ui);
+  font-weight: 600;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--ice);
+}
 .cart-soon p:not(.cart-soon__title) { color: var(--dim); font-size: 14px; line-height: 1.45; }
 
 /* ----- Экран «Готово» ----- */
@@ -1930,7 +1930,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   .cart-item__pic { width: 76px; height: 76px; }
   .cart__total b { font-size: 34px; }
   .cart-pay { padding: 14px 14px 16px; }
-  .cart-pay__total b { font-size: 28px; }
+  .cart-pay__sum { font-size: 46px; }
   .cart-plist { padding: 12px 12px 0; }
   .cart-addr { grid-template-columns: minmax(0, 1fr) 84px; }
 }

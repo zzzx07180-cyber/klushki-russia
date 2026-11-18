@@ -215,6 +215,7 @@ window.Delivery = (function () {
   // id, название, регион, широта, долгота, начало почтового индекса
   const DEMO_CITIES = [
     ['msk', 'Москва', 'Москва', 55.7558, 37.6173, '101'],
+    ['bel', 'Белгород', 'Белгородская область', 50.5958, 36.5873, '308'],   // отсюда отправляем посылки
     ['spb', 'Санкт-Петербург', 'Санкт-Петербург', 59.9343, 30.3351, '190'],
     ['kzn', 'Казань', 'Республика Татарстан', 55.7963, 49.1088, '420'],
     ['ekb', 'Екатеринбург', 'Свердловская область', 56.8389, 60.6057, '620'],
@@ -274,10 +275,10 @@ window.Delivery = (function () {
     });
   }
 
-  // Цена-пример: основа по способу + за килограммы + за расстояние от Москвы
+  // Цена-пример: основа по способу + за килограммы + за расстояние от Белгорода (оттуда отправляем)
   function demoQuote(req) {
     const c = DEMO_CITIES.find((x) => x.id === req.city) || DEMO_CITIES[0];
-    const home = DEMO_CITIES[0];
+    const home = DEMO_CITIES.find((x) => x.id === 'bel');
     const rad = Math.PI / 180;
     const km = 6371 * Math.acos(Math.min(1, Math.sin(home.lat * rad) * Math.sin(c.lat * rad) +
       Math.cos(home.lat * rad) * Math.cos(c.lat * rad) * Math.cos((c.lon - home.lon) * rad)));

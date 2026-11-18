@@ -1439,10 +1439,10 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .cart-step__no { margin-left: auto; font-size: 12px; font-weight: 500; letter-spacing: 1px; color: var(--dim); }
 .cart__note--center { margin: 12px 0 0; text-align: center; }
 
-/* нажали «Оплатить», а доставка не выбрана — подсвечиваем варианты и слегка встряхиваем их */
-.cart-step__need { color: var(--ice); font-size: 13.5px; }
-.cart-step__need:not(:empty) { margin-top: 10px; }
-.cart-step.is-need .cart-ship__opt { border-color: var(--ice); animation: cart-shake .4s; }
+/* нажали «Оплатить», а доставка заполнена не до конца — подсказка, что осталось, и лёгкая «встряска» */
+.cart-step__need { color: var(--ice); font-size: 14px; font-weight: 500; }
+.cart-step__need:not(:empty) { margin-top: 12px; padding: 8px 12px; border-left: 3px solid var(--ice); background: rgba(127, 212, 255, .1); }
+.cart-step.is-need .cart-step__need { animation: cart-shake .4s; }
 @keyframes cart-shake {
   25% { transform: translateX(-6px); }
   50% { transform: translateX(5px); }
@@ -1518,6 +1518,259 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .cart-pm__tg { flex: none; display: grid; color: var(--ice); }
 .cart-pm__why { margin-top: 10px; font-size: 13.5px; }
 
+/* ----- Доставка: способ, город, адрес, пункт выдачи, цена (delivery.js) ----- */
+/* «Демо» — доставка показана на примерах (режим demo в delivery.js) */
+.cart-demo {
+  display: inline-block;
+  margin-left: 2px;
+  padding: 2px 8px;
+  background: var(--ice);
+  color: var(--black);
+  font-family: var(--f-ui);
+  font-style: normal;
+  font-weight: 600;
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  transform: skewX(-12deg);
+}
+.cart-demo__note {
+  margin: -2px 0 12px;
+  padding: 8px 12px;
+  background: rgba(127, 212, 255, .08);
+  border-left: 3px solid var(--ice);
+  color: var(--dim);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.cart-demo__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  background: var(--black);
+  color: var(--dim);
+  font-size: 13px;
+}
+
+/* способ доставки — две наклонные «вкладки» */
+.cart-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 12px; }
+.cart-seg__opt {
+  padding: 11px 8px;
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid var(--line);
+  color: var(--dim);
+  font-family: var(--f-ui);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.2;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transform: skewX(-8deg);
+  transition: background .15s, border-color .15s, color .15s, box-shadow .15s;
+}
+.cart-seg__opt:hover:not(.is-active) { color: var(--white); border-color: var(--white); }
+.cart-seg__opt.is-active { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 16px var(--accent-glow); }
+
+/* город и подсказки под ним */
+.cart-city { position: relative; }
+.cart-sug {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  max-height: 264px;
+  margin-top: 2px;
+  overflow-y: auto;
+  list-style: none;
+  background: #0b1626;
+  border: 1px solid var(--accent);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, .55), 0 0 18px var(--accent-glow);
+}
+.cart-sug button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+.cart-sug li:last-child button { border-bottom: 0; }
+.cart-sug button:hover, .cart-sug button:focus-visible { background: rgba(30, 139, 255, .22); }
+.cart-sug b { font-weight: 500; font-size: 15px; }
+.cart-sug small { color: var(--dim); font-size: 12px; text-align: right; }
+.cart-sug__none { padding: 12px 14px; color: var(--dim); font-size: 13.5px; line-height: 1.4; }
+
+/* адрес для курьера */
+.cart-addr { display: grid; grid-template-columns: minmax(0, 1fr) 100px; gap: 10px; }
+.cart-hint { margin-top: 10px; color: var(--dim); font-size: 13.5px; line-height: 1.4; }
+
+/* «Выбрать пункт выдачи на карте» */
+.cart-pick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 14px;
+  background: rgba(127, 212, 255, .06);
+  border: 1px dashed var(--ice);
+  color: var(--ice);
+  font-family: var(--f-ui);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  transition: background .15s, color .15s;
+}
+.cart-pick:hover:not(:disabled) { background: rgba(127, 212, 255, .16); color: #fff; }
+.cart-pick:disabled { opacity: .4; cursor: not-allowed; }
+
+/* выбранный пункт: в оформлении (.cart-point) и внизу экрана с картой (.cart-chosen) */
+.cart-point, .cart-chosen { display: flex; align-items: flex-start; gap: 12px; }
+.cart-point {
+  margin-top: 14px;
+  padding: 12px 12px 12px 14px;
+  background: rgba(30, 139, 255, .14);
+  border: 1px solid var(--accent);
+  border-left-width: 3px;
+}
+.cart-chosen { margin-bottom: 12px; }
+.cart-point svg, .cart-chosen svg { flex: none; margin-top: 2px; color: var(--ice); }
+.cart-point > span, .cart-chosen > span { flex: 1; min-width: 0; font-size: 14px; line-height: 1.4; }
+.cart-point b, .cart-chosen b {
+  display: block;
+  font-family: var(--f-ui);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+.cart-point small, .cart-chosen small { display: block; margin-top: 3px; color: var(--dim); font-size: 12.5px; }
+.cart-point button, .cart-pay__method button {
+  flex: none;
+  padding: 6px 2px;
+  font-family: var(--f-ui);
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--ice);
+  border-bottom: 1px dashed rgba(127, 212, 255, .5);
+}
+.cart-point button:hover { color: #fff; }
+
+/* цена и срок доставки */
+.cart-quote {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: var(--black);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ice);
+  color: var(--dim);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.cart-quote b { color: var(--white); font-family: var(--f-display); font-style: italic; font-weight: 900; font-size: 20px; }
+.cart-quote__wait { animation: cart-pulse .8s ease-in-out infinite alternate; }
+@keyframes cart-pulse {
+  from { opacity: .4; }
+  to   { opacity: 1; }
+}
+.cart-sum--sub { margin: -6px 0 8px; }
+.cart-sum--sub li { padding: 4px 0; border-bottom: 0; color: var(--dim); font-size: 14px; }
+
+/* ----- Экран «Пункты на карте» ----- */
+.cart__body.is-points { padding: 0 0 18px; }
+.cart-map {
+  position: sticky;                          /* карта стоит наверху, список под ней прокручивается */
+  top: 0;
+  z-index: 2;
+  height: min(44vh, 380px);
+  background: #0b1626;
+  border-bottom: 2px solid var(--accent);
+  isolation: isolate;
+  font-family: var(--f-text);
+}
+.cart-map__wait { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; color: var(--dim); font-size: 14px; text-align: center; }
+.cart-map.is-ready .cart-map__wait { display: none; }
+/* тёмная карта: светлые картинки OpenStreetMap «выворачиваем» в тёмные (CSS-фильтр, не ctx.filter) */
+.cart-map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.95) contrast(.9) saturate(.5); }
+.cart-map .leaflet-bar { border: 1px solid var(--line); border-radius: 0; box-shadow: 0 4px 14px rgba(0, 0, 0, .5); }
+.cart-map .leaflet-bar a,
+.cart-map .leaflet-bar a:first-child,
+.cart-map .leaflet-bar a:last-child { background: var(--black); color: var(--white); border-color: var(--line); border-radius: 0; }
+.cart-map .leaflet-bar a:hover { background: #1a2433; color: var(--ice); }
+.cart-map .leaflet-control-attribution { background: rgba(7, 9, 13, .78); color: var(--dim); font-size: 10px; }
+.cart-map .leaflet-control-attribution a { color: var(--ice); }
+
+/* значок пункта на карте — синяя «капля», выбранный — ледяной и крупнее */
+.map-pin i {
+  position: absolute;
+  top: 4px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  background: var(--accent);
+  border: 2px solid var(--white);
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .6);
+  transition: transform .15s, background .15s;
+}
+.map-pin i::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: var(--black);
+}
+.map-pin.is-active i {
+  background: var(--ice);
+  transform: rotate(-45deg) scale(1.25);
+  box-shadow: 0 0 0 4px rgba(127, 212, 255, .35), 0 2px 10px rgba(0, 0, 0, .6);
+}
+
+.cart-points__msg { padding: 24px 18px 0; text-align: center; }
+.cart-plist { list-style: none; display: grid; gap: 8px; padding: 14px 18px 0; }
+.cart-pt {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: left;
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid var(--line);
+  border-left: 3px solid transparent;
+  scroll-margin-top: calc(min(44vh, 380px) + 12px);   /* при прокрутке к пункту не прятать его под картой */
+  transition: background .15s, border-color .15s;
+}
+.cart-pt b {
+  display: block;
+  font-family: var(--f-ui);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+.cart-pt span { display: block; margin-top: 2px; font-size: 14px; }
+.cart-pt small { display: block; margin-top: 3px; color: var(--dim); font-size: 12.5px; }
+.cart-pt:hover { border-color: var(--white); }
+.cart-pt.is-active {
+  background: rgba(30, 139, 255, .2);
+  border-color: var(--accent);
+  border-left-color: var(--ice);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.cart-pt.is-active b { color: var(--ice); }
+
 /* ----- Экран «Оплата» ----- */
 .cart-pay {                                  /* «квитанция»: сумма, номер заказа, способ */
   padding: 16px 18px 18px;
@@ -1561,7 +1814,19 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   white-space: nowrap;
   text-shadow: 0 0 24px var(--accent-glow);
 }
-.cart-pay__for { color: var(--dim); font-size: 14px; }
+.cart-pay__rows { list-style: none; margin: 10px 0 0; }
+.cart-pay__rows li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-top: 1px dashed var(--line);
+  color: var(--dim);
+  font-size: 14px;
+}
+.cart-pay__rows b { color: var(--white); font-family: var(--f-ui); font-weight: 600; letter-spacing: .5px; white-space: nowrap; }
+.cart-pay__for { display: flex; align-items: flex-start; gap: 8px; margin-top: 10px; color: var(--dim); font-size: 14px; line-height: 1.4; }
+.cart-pay__for svg { flex: none; margin-top: 1px; color: var(--ice); }
 .cart-pay__method {
   display: flex;
   align-items: center;
@@ -1581,16 +1846,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   letter-spacing: 1px;
 }
 .cart-pay__method small { display: block; color: var(--dim); font-size: 12.5px; }
-.cart-pay__method button {
-  flex: none;
-  padding: 6px 2px;
-  font-family: var(--f-ui);
-  font-size: 12.5px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--ice);
-  border-bottom: 1px dashed rgba(127, 212, 255, .5);
-}
 .cart-pay__method button:hover { color: #fff; }
 
 /* «Онлайн-оплата скоро заработает» — пока банк не подключён */
@@ -1676,13 +1931,16 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   .cart__total b { font-size: 34px; }
   .cart-pay { padding: 14px 14px 16px; }
   .cart-pay__sum { font-size: 46px; }
+  .cart-plist { padding: 12px 12px 0; }
+  .cart-addr { grid-template-columns: minmax(0, 1fr) 84px; }
 }
 /* человек отключил анимации в системе — окно появляется сразу */
 @media (prefers-reduced-motion: reduce) {
   .cart__panel, .cart__shade { transition: none; }
   .cart__body.is-fresh > *, .cart__body.is-fresh .cart-item,
   .cart-done__ring, .cart-done__check, .cart-btn.is-bump .cart-btn__count,
-  .cart-step.is-need .cart-ship__opt { animation: none; }
+  .cart-step.is-need .cart-step__need, .cart-quote__wait { animation: none; }
+  .map-pin i { transition: none; }
 }
 
 /* ===== Планшеты ===== */

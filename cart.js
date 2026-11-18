@@ -7,8 +7,10 @@
 // Значок корзины стоит в шапке каждой страницы (кнопка #cartBtn), а выдвижное окно этот скрипт
 // создаёт сам — править его нужно только здесь. Оформление — в style.css, блок «КОРЗИНА».
 //
-// В окне четыре экрана: «Корзина» (список) → «Оформление» (доставка, способ оплаты, итог) →
+// Экраны окна: «Корзина» (список) → «Оформление» (доставка, способ оплаты, итог) →
 // «Оплата» (окно оплаты картой / СБП) → «Готово» (текст заказа для Telegram).
+// Из «Оформления» можно открыть «Пункты на карте» — выбрать пункт выдачи / отделение почты.
+// Всё про службы доставки, города, пункты и цены — в delivery.js (он подключается перед этим файлом).
 // ⚠️ Онлайн-оплата пока НЕ подключена: окно оплаты уже нарисовано, но деньги не списываются —
 // в нём честно написано «скоро» и предложено отправить заказ в Telegram. Когда подключим платёжный
 // сервис (банк), в экране «Оплата» вместо этой надписи появится переход на защищённую страницу банка:
@@ -16,13 +18,12 @@
 
 window.Cart = (function () {
   const S = window.Shop;
+  const D = window.Delivery;
   const { esc, price, hasPrice, title, photos, category, specsText } = S;
   const PRODUCTS = window.PRODUCTS || [];
   const KEY = 'klushki-cart';                       // под этим именем корзина лежит в браузере
-  const DELIVERY = [
-    { id: 'cdek', label: 'СДЭК',         note: 'До пункта выдачи или курьером' },
-    { id: 'post', label: 'Почта России', note: 'В любое отделение страны' }
-  ];
+  // smart — доставка «умная»: подсказки городов, пункты на карте, цена (режимы demo и live в delivery.js)
+  const smart = D.MODE !== 'off';
   // Способы оплаты. online: true — оплата на сайте (окно «Оплата»), false — договариваемся в чате.
   // chips — значки платёжных систем справа (просто надписи, без чужих логотипов).
   const PAYMENT = [
@@ -31,30 +32,45 @@ window.Cart = (function () {
     { id: 'chat', label: 'Через Telegram', note: 'Договоримся в чате, как тебе удобнее', chips: [],                    online: false, inText: 'обсудим в чате' }
   ];
   const WORDS = ['товар', 'товара', 'товаров'];
+  const DAYS = ['день', 'дня', 'дней'];
 
   // 1 товар, 2 товара, 5 товаров
   const plural = (n, w) => w[n % 10 === 1 && n % 100 !== 11 ? 0
     : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 1 : 2];
   const find = (id) => PRODUCTS.find((p) => String(p.id) === String(id));
   const fullName = (p) => [p.brand, title(p)].filter(Boolean).join(' ');
-  const cleanCity = (s) => String(s).replace(/\s+/g, ' ').trim().slice(0, 60);
+  // строка из поля ввода: без лишних пробелов и не длиннее n знаков
+  const clean = (s, n) => typeof s === 'string' ? s.replace(/\s+/g, ' ').trim().slice(0, n) : '';
+  const norm = (s) => String(s).toLowerCase().replace(/ё/g, 'е').trim();
 
   const ICON_CART = '<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h3.4l3 13.2h12.6l2.6-9.4H6.8"/><circle cx="11" cy="22.6" r="1.7"/><circle cx="20" cy="22.6" r="1.7"/></svg>';
   const ICON_TG = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M21.5 3.6 2.9 10.8c-1.3.5-1.3 1.2-.2 1.6l4.8 1.5 1.8 5.6c.2.6.4.8.8.8.4 0 .6-.2.9-.5l2.3-2.2 4.8 3.5c.9.5 1.5.2 1.7-.8l3.1-14.8c.3-1.3-.5-1.9-1.4-1.5ZM8.7 13.6l9.4-5.9c.5-.3.9-.1.5.2l-7.9 7.2-.3 3.3-1.7-4.8Z"/></svg>';
   const ICON_DONE = '<svg class="cart-done__icon" viewBox="0 0 96 96" fill="none" aria-hidden="true"><circle class="cart-done__ring" cx="48" cy="48" r="42" stroke-width="4"/><path class="cart-done__check" d="M30 49.5 43 62l24-27" stroke-width="6"/></svg>';
   const ICON_LOCK = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="1.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>';
   const ICON_SOON = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>';
+  const ICON_PIN = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6.5-6.2-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.8" r="2.4"/></svg>';
 
   // ----- Что лежит в корзине -----
-  // items — номера товаров (id) в том порядке, в каком их добавляли; pay — выбранный способ оплаты
-  const state = { items: [], delivery: '', city: '', pay: 'card' };
+  // items — номера товаров (id) в том порядке, в каком их добавляли;
+  // delivery — служба (cdek / post), method — способ (pvz — пункт выдачи / отделение, door — курьер до двери),
+  // city / cityId — город (название и номер в справочнике службы), point — выбранный пункт,
+  // street / flat — адрес для курьера, pay — способ оплаты.
+  const state = { items: [], delivery: '', method: 'pvz', city: '', cityId: '', point: null, street: '', flat: '', pay: 'card' };
 
   function load() {
     try {
       const d = JSON.parse(localStorage.getItem(KEY) || '{}') || {};
       state.items = Array.isArray(d.items) ? [...new Set(d.items.map(String))] : [];
-      state.delivery = DELIVERY.some((x) => x.id === d.delivery) ? d.delivery : '';
-      state.city = typeof d.city === 'string' ? cleanCity(d.city) : '';
+      state.delivery = D.service(d.delivery) ? d.delivery : '';
+      state.method = d.method === 'door' ? 'door' : 'pvz';
+      state.city = clean(d.city, 60);
+      state.cityId = clean(d.cityId, 40);
+      const p = d.point;
+      state.point = p && typeof p === 'object' && clean(p.id, 80)
+        ? { id: clean(p.id, 80), name: clean(p.name, 120), address: clean(p.address, 200), hours: clean(p.hours, 120) }
+        : null;
+      state.street = clean(d.street, 120);
+      state.flat = clean(d.flat, 20);
       state.pay = PAYMENT.some((x) => x.id === d.pay) ? d.pay : 'card';
     } catch (e) { /* хранилище выключено (режим «инкогнито») — корзина проживёт до закрытия страницы */ }
   }
@@ -94,6 +110,50 @@ window.Cart = (function () {
   // «Оформление»; поменялся состав корзины — при следующем оформлении будет новый номер.
   let orderNo = '';
   const newOrderNo = () => String(Date.now()).slice(-6);
+
+  // ----- Цена доставки (только в «умном» режиме) -----
+  // Спрашиваем у delivery.js, когда известны служба, способ и город. Ответ приходит не сразу —
+  // пока ждём, пишем «Считаем доставку…». key — для каких условий посчитано.
+  let quoteNow = { key: '', status: 'idle' };
+  const quoteKey = () => smart && state.delivery && state.cityId
+    ? [state.delivery, state.method, state.cityId, state.items.join(',')].join('|') : '';
+
+  function requestQuote() {
+    const key = quoteKey();
+    if (key === quoteNow.key) return;
+    if (!key) { quoteNow = { key: '', status: 'idle' }; return; }
+    quoteNow = { key, status: 'loading' };
+    D.quote({ service: state.delivery, method: state.method, city: state.cityId, parcels: D.parcels(items()) })
+      .then((q) => {
+        if (quoteNow.key !== key) return;
+        const cost = Math.round(Number(q && q.price));
+        quoteNow = cost >= 0 ? { key, status: 'ok', price: cost, days: [Number(q.daysMin), Number(q.daysMax)] } : { key, status: 'error' };
+        paintQuote();
+      }, () => {
+        if (quoteNow.key !== key) return;
+        quoteNow = { key, status: 'error' };
+        paintQuote();
+      });
+  }
+  // Посчитанная цена доставки или null, если её пока нет
+  const shipCost = () => quoteNow.status === 'ok' && quoteNow.key === quoteKey() ? quoteNow.price : null;
+  const rub = (n) => n ? price(n) : 'бесплатно';
+  function daysText(d) {
+    const [a, b] = d || [];
+    if (!(a > 0)) return '';
+    return (b > a ? a + '–' + b : a) + ' ' + plural(b > a ? b : a, DAYS);
+  }
+
+  // Доставка одной строкой: «СДЭК, пункт выдачи, Пункт СДЭК №3 — Казань, ул. Мира, 24»
+  function shipText() {
+    const s = D.service(state.delivery);
+    if (!s) return state.city ? 'город ' + state.city : '';
+    const parts = [s.label, D.method(state.delivery, state.method).text];
+    if (state.method === 'pvz' && smart && state.point) parts.push(state.point.name + ' — ' + state.point.address);
+    else if (state.city) parts.push('г. ' + state.city);
+    if (state.method === 'door' && state.street) parts.push(state.street + (state.flat ? ', кв./офис ' + state.flat : ''));
+    return parts.join(', ');
+  }
 
   // ----- Изменения корзины -----
   let undo = null;        // что вернуть по кнопке «Вернуть»: { items: прежний список, text: подпись }
@@ -204,9 +264,13 @@ window.Cart = (function () {
         (t.sum ? ' на ' + price(t.sum) : '') +
         (t.sum && t.ask ? ' (ещё ' + t.ask + ' — цена по запросу)' : ''));
     }
-    const ship = DELIVERY.find((d) => d.id === state.delivery);
-    if (ship || state.city) {
-      lines.push('Доставка: ' + [ship && ship.label, state.city && 'город ' + state.city].filter(Boolean).join(', '));
+    const ship = shipText();
+    if (ship) lines.push('Доставка: ' + ship);
+    const cost = shipCost();
+    if (cost !== null) {
+      const days = daysText(quoteNow.days);
+      lines.push('Доставка по расчёту сайта: ' + rub(cost) + (days ? ', ' + days : '') + (D.MODE === 'demo' ? ' (демо-пример)' : ''));
+      if (t.sum) lines.push('Всего с доставкой: ' + price(t.sum + cost) + (t.ask ? ' (без товаров с ценой по запросу)' : ''));
     }
     lines.push('Способ оплаты: ' + payMethod(t).inText);
     return lines.join('\n').trim();
@@ -239,7 +303,8 @@ window.Cart = (function () {
   };
 
   let isOpen = false;
-  let view = 'list';      // какой экран показан: list — корзина, checkout — оформление, pay — оплата, done — готово
+  // какой экран показан: list — корзина, checkout — оформление, points — пункты на карте, pay — оплата, done — готово
+  let view = 'list';
   let fresh = false;      // экран только что сменился — содержимое плавно появляется
   let copied = false;     // получилось ли скопировать текст заказа
 
@@ -265,18 +330,23 @@ window.Cart = (function () {
       </li>`;
   }
 
-  function totalHTML(t) {
+  // extra — что прибавить к сумме товаров (доставку)
+  function totalHTML(t, extra) {
     return `
       <div class="cart__total">
-        <span>Итого <small>${t.count} ${plural(t.count, WORDS)}</small></span>
-        <b>${t.sum ? price(t.sum) : 'По запросу'}</b>
+        <span>Итого <small>${t.count} ${plural(t.count, WORDS)}${extra !== undefined ? ' и доставка' : ''}</small></span>
+        <b>${t.sum ? price(t.sum + (extra || 0)) : 'По запросу'}</b>
       </div>`;
   }
 
-  // Пояснение под итогом: что в сумму не вошло
-  const noteText = (t) => t.sum && t.ask
-    ? `Без ${t.ask === 1 ? 'товара' : 'товаров'} с ценой по запросу и без доставки — их посчитаем в чате.`
-    : 'Доставка считается отдельно — зависит от города.';
+  // Пояснение под итогом: что в сумму не вошло. shipKnown — цена доставки уже посчитана
+  function noteText(t, shipKnown) {
+    if (t.sum && t.ask) {
+      return `Без ${t.ask === 1 ? 'товара' : 'товаров'} с ценой по запросу${shipKnown ? '' : ' и без доставки'} — их посчитаем в чате.`;
+    }
+    if (shipKnown) return D.MODE === 'demo' ? 'Цена доставки — пример: включён демо-режим.' : '';
+    return 'Доставка считается отдельно — зависит от города.';
+  }
 
   // Полоска-сообщение над списком: «Убрали … — Вернуть» или «Товар уже продан»
   function barsHTML() {
@@ -304,7 +374,7 @@ window.Cart = (function () {
         <ul class="cart__list">${list.map(itemHTML).join('')}</ul>
         <button type="button" class="cart__clear" data-cart-clear>Очистить корзину</button>`,
       foot: `${totalHTML(t)}
-        <p class="cart__note">${noteText(t)}</p>
+        <p class="cart__note">${noteText(t, false)}</p>
         <button type="button" class="btn cart__cta" data-cart-go="checkout">Оформить заказ</button>`
     };
   }
@@ -313,27 +383,103 @@ window.Cart = (function () {
   const sendLink = (label, cls) =>
     `<a href="${esc(S.telegramLink(message()))}" class="${cls}" target="_blank" rel="noopener" data-cart-send>${label}</a>`;
 
+  // ----- Экран «Оформление», шаг 1: доставка -----
+  const demoBadge = '<span class="cart-demo">Демо</span>';
+
+  function shipHTML() {
+    const svc = D.service(state.delivery);
+    const m = svc && D.method(state.delivery, state.method);
+    return `
+      <p class="cart-step__label"><i>1</i> Доставка ${D.MODE === 'demo' ? demoBadge : ''}</p>
+      ${D.MODE === 'demo' ? `<p class="cart-demo__note">Так доставка будет работать после договоров со СДЭК и Почтой России.
+        Пункты на карте, цены и сроки сейчас — примеры.</p>` : ''}
+      <div class="cart-ship">
+        ${D.SERVICES.map((s) => `
+          <button type="button" class="cart-ship__opt${s.id === state.delivery ? ' is-active' : ''}" data-cart-ship="${s.id}" aria-pressed="${s.id === state.delivery}">
+            <b>${s.label}</b><span>${s.note}</span>
+          </button>`).join('')}
+      </div>
+      ${svc ? `
+        <div class="cart-seg" role="group" aria-label="Способ доставки">
+          ${svc.methods.map((x) => `
+            <button type="button" class="cart-seg__opt${x.id === m.id ? ' is-active' : ''}" data-cart-method="${x.id}" aria-pressed="${x.id === m.id}">${x.label}</button>`).join('')}
+        </div>
+        <div class="cart-city">
+          <label class="cart-field">
+            <span>Город</span>
+            <input type="text" id="cartCity" maxlength="60" placeholder="Например, Казань" value="${esc(state.city)}"
+              ${smart ? 'autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="cartSug"' : 'autocomplete="address-level2"'}>
+          </label>
+          ${smart ? '<ul class="cart-sug" id="cartSug" role="listbox" aria-label="Подсказки города" hidden></ul>' : ''}
+        </div>
+        <div data-ship-more>${moreHTML()}</div>
+        <p class="cart-quote" data-quote aria-live="polite">${quoteHTML()}</p>` : ''}
+      <p class="cart-step__need" role="alert"></p>`;
+  }
+
+  // Под городом: пункт выдачи (кнопка «на карте» / выбранный пункт) или адрес для курьера
+  function moreHTML() {
+    const m = D.method(state.delivery, state.method);
+    if (!m) return '';
+    if (state.method === 'door') {
+      return `
+        <div class="cart-addr">
+          <label class="cart-field"><span>Улица и дом</span>
+            <input type="text" id="cartStreet" maxlength="120" autocomplete="address-line1" placeholder="ул. Ленина, 10" value="${esc(state.street)}"></label>
+          <label class="cart-field"><span>Кв. / офис</span>
+            <input type="text" id="cartFlat" maxlength="20" autocomplete="address-line2" placeholder="15" value="${esc(state.flat)}"></label>
+        </div>
+        <p class="cart-hint">Имя и телефон для курьера спросим в чате.</p>`;
+    }
+    if (!smart) {
+      return `<p class="cart-hint">${state.delivery === 'post' ? 'Ближайшее отделение' : 'Удобный пункт выдачи'} подберём вместе в чате.</p>`;
+    }
+    if (state.point) {
+      return `
+        <div class="cart-point">
+          ${ICON_PIN}
+          <span><b>${esc(state.point.name)}</b>${esc(state.point.address)}${state.point.hours ? `<small>${esc(state.point.hours)}</small>` : ''}</span>
+          <button type="button" data-cart-points>Изменить</button>
+        </div>`;
+    }
+    return `
+      <button type="button" class="cart-pick" data-cart-points${state.cityId ? '' : ' disabled'}>${ICON_PIN} ${m.pick} на карте</button>
+      ${state.cityId ? '' : '<p class="cart-hint">Сначала выбери город из подсказок.</p>'}`;
+  }
+
+  // Строка с ценой и сроком доставки
+  function quoteHTML() {
+    if (!smart) return 'Стоимость доставки посчитаем в чате — зависит от города и способа.';
+    if (!state.cityId) return 'Выбери город — посчитаем стоимость и срок.';
+    if (quoteNow.status === 'loading') return '<span class="cart-quote__wait">Считаем доставку…</span>';
+    if (quoteNow.status === 'error') return 'Не получилось посчитать доставку — посчитаем в чате.';
+    if (quoteNow.status !== 'ok') return '';
+    const days = daysText(quoteNow.days);
+    return `Доставка: <b>${rub(quoteNow.price)}</b>${days ? ' · ' + days : ''}`;
+  }
+
+  // Итог под списком товаров: «Товары / Доставка / Итого»
+  function sumHTML(t) {
+    const ship = shipCost();
+    const note = noteText(t, ship !== null);
+    return (ship === null ? '' : `
+      <ul class="cart-sum cart-sum--sub">
+        <li><span>Товары</span><b>${t.sum ? price(t.sum) : 'по запросу'}</b></li>
+        <li><span>Доставка</span><b>${rub(ship)}</b></li>
+      </ul>`) +
+      totalHTML(t, ship === null ? undefined : ship) +
+      (note ? `<p class="cart__note">${note}</p>` : '');
+  }
+
   // ----- Экран «Оформление» -----
   function checkoutView(list, t) {
     const online = canPayOnline(t);
     const pm = payMethod(t);
+    const toPay = t.sum + (shipCost() || 0);
     return {
       title: 'Оформление',
       body: `
-        <section class="cart-step" data-step="ship">
-          <p class="cart-step__label"><i>1</i> Доставка</p>
-          <div class="cart-ship">
-            ${DELIVERY.map((d) => `
-              <button type="button" class="cart-ship__opt${d.id === state.delivery ? ' is-active' : ''}" data-cart-ship="${d.id}" aria-pressed="${d.id === state.delivery}">
-                <b>${d.label}</b><span>${d.note}</span>
-              </button>`).join('')}
-          </div>
-          <p class="cart-step__need" role="alert"></p>
-          <label class="cart-field">
-            <span>Город</span>
-            <input type="text" id="cartCity" maxlength="60" autocomplete="address-level2" placeholder="Например, Казань" value="${esc(state.city)}">
-          </label>
-        </section>
+        <section class="cart-step" data-step="ship">${shipHTML()}</section>
 
         <section class="cart-step">
           <p class="cart-step__label"><i>2</i> Оплата</p>
@@ -359,15 +505,114 @@ window.Cart = (function () {
           <ul class="cart-sum">
             ${list.map((p) => `<li><span>${esc(fullName(p))}</span><b>${hasPrice(p.price) ? price(p.price) : 'по запросу'}</b></li>`).join('')}
           </ul>
-          ${totalHTML(t)}
-          <p class="cart__note">${noteText(t)}</p>
+          <div data-sum>${sumHTML(t)}</div>
         </section>`,
       foot: pm.online
-        ? `<button type="button" class="btn cart__cta" data-cart-go="pay">${ICON_LOCK} Оплатить ${price(t.sum)}</button>
+        ? `<button type="button" class="btn cart__cta" data-cart-go="pay">${ICON_LOCK} Оплатить ${price(toPay)}</button>
            ${sendLink('Есть вопрос? Написать в Telegram', 'cart__alt')}`
         : `${sendLink(ICON_TG + ' Отправить заказ в Telegram', 'btn cart__cta')}
            <p class="cart__note cart__note--center">Заказ соберётся в одно сообщение — ответим, пришлём живые фото и расскажем, как оплатить.</p>`
     };
+  }
+
+  // ----- Экран «Пункты на карте» -----
+  // Пункты выдачи / отделения выбранного города: сверху карта, под ней список. Нажал на пункт —
+  // внизу появляется его адрес и кнопка «Забрать здесь».
+  let spots = { key: '', status: 'idle', list: [] };
+  let pending = '';       // пункт, на который нажали (ещё не подтверждён кнопкой)
+
+  function pointsView() {
+    const m = D.method(state.delivery, 'pvz');
+    const chosen = spots.list.find((p) => p.id === pending);
+    let list;
+    if (spots.status === 'loading') list = '<p class="cart-hint cart-points__msg">Загружаем пункты…</p>';
+    else if (spots.status === 'error') {
+      list = `<p class="cart-hint cart-points__msg">Не получилось загрузить пункты.</p>
+        <button type="button" class="cart__alt" data-cart-points>Попробовать ещё раз</button>`;
+    } else if (!spots.list.length) {
+      list = '<p class="cart-hint cart-points__msg">В этом городе пунктов не нашли — выбери «Курьером до двери» или напиши нам в Telegram.</p>';
+    } else {
+      list = `<ul class="cart-plist">${spots.list.map((p) => `
+        <li><button type="button" class="cart-pt${p.id === pending ? ' is-active' : ''}" data-cart-point="${esc(p.id)}" aria-pressed="${p.id === pending}">
+          <b>${esc(p.name)}</b><span>${esc(p.address)}</span>${p.hours ? `<small>${esc(p.hours)}</small>` : ''}
+        </button></li>`).join('')}</ul>`;
+    }
+    return {
+      title: m.title,
+      body: `
+        ${D.MODE === 'demo' ? `<p class="cart-demo__bar">${demoBadge} Пункты и адреса — примеры, не настоящие</p>` : ''}
+        ${spots.status === 'ok' && spots.list.length ? '<div class="cart-map" id="cartMap"><p class="cart-map__wait">Загружаем карту…</p></div>' : ''}
+        ${list}`,
+      foot: chosen
+        ? `<div class="cart-chosen">${ICON_PIN}<span><b>${esc(chosen.name)}</b>${esc(chosen.address)}${chosen.hours ? `<small>${esc(chosen.hours)}</small>` : ''}</span></div>
+           <button type="button" class="btn cart__cta" data-cart-point-ok>${state.delivery === 'post' ? 'Получить здесь' : 'Забрать здесь'}</button>`
+        : '<p class="cart__note cart__note--center">Нажми на пункт на карте или в списке</p>'
+    };
+  }
+
+  // Карта живёт, пока открыт экран с пунктами; при любой перерисовке окна — убираем её
+  let mapCtl = null;
+  let mapSeq = 0;
+  function unmountMap() {
+    mapSeq++;
+    if (mapCtl) { mapCtl.destroy(); mapCtl = null; }
+  }
+  function mountMap() {
+    const box = el.body.querySelector('#cartMap');
+    if (!box) return;
+    const seq = ++mapSeq;
+    D.map(box, spots.list, pending, (id) => pickPoint(id, false)).then((ctl) => {
+      if (seq !== mapSeq) { ctl.destroy(); return; }
+      mapCtl = ctl;
+      box.classList.add('is-ready');
+    }, () => {
+      const wait = box.querySelector('.cart-map__wait');
+      if (seq === mapSeq && wait) wait.textContent = 'Карта не загрузилась — выбери пункт из списка ниже.';
+    });
+  }
+
+  function openPoints() {
+    if (!smart || !state.cityId) return;
+    const key = state.delivery + '|' + state.cityId;
+    pending = state.point ? state.point.id : '';
+    if (spots.key !== key || spots.status === 'error') {
+      spots = { key, status: 'loading', list: [] };
+      D.points(state.delivery, state.cityId).then((list) => {
+        if (spots.key !== key) return;
+        const ok = (Array.isArray(list) ? list : []).map((p) => ({
+          id: String(p.id), name: String(p.name || ''), address: String(p.address || ''),
+          hours: String(p.hours || ''), lat: Number(p.lat), lon: Number(p.lon)
+        })).filter((p) => p.id && isFinite(p.lat) && isFinite(p.lon));
+        spots = { key, status: 'ok', list: ok };
+        if (view === 'points') render();
+      }, () => {
+        if (spots.key !== key) return;
+        spots = { key, status: 'error', list: [] };
+        if (view === 'points') render();
+      });
+    }
+    show('points');
+  }
+
+  // Нажали на пункт — на карте (fromList = false) или в списке (true)
+  function pickPoint(id, fromList) {
+    pending = id;
+    el.body.querySelectorAll('[data-cart-point]').forEach((b) => {
+      const on = b.dataset.cartPoint === id;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-pressed', on);
+      if (on && !fromList) b.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+    if (mapCtl) mapCtl.select(id, fromList);
+    el.foot.innerHTML = pointsView().foot;
+  }
+
+  function confirmPoint() {
+    const p = spots.list.find((x) => x.id === pending);
+    if (!p) return;
+    state.point = { id: p.id, name: p.name, address: p.address, hours: p.hours };
+    save();
+    show('checkout');
   }
 
   // ----- Экран «Оплата» -----
@@ -376,8 +621,8 @@ window.Cart = (function () {
   // на его защищённую страницу оплаты (см. начало файла).
   function payView(list, t) {
     const pm = payMethod(t);
-    const ship = DELIVERY.find((d) => d.id === state.delivery);
-    const where = [ship && ship.label, state.city].filter(Boolean).join(', ');
+    const ship = shipCost();
+    const where = shipText();
     return {
       title: 'Оплата',
       body: `
@@ -387,8 +632,13 @@ window.Cart = (function () {
             <span>Заказ № ${orderNo}</span>
           </div>
           <p class="cart-pay__label">К оплате</p>
-          <p class="cart-pay__sum">${price(t.sum)}</p>
-          <p class="cart-pay__for">${t.count} ${plural(t.count, WORDS)}${where ? ' · доставка: ' + esc(where) : ''}</p>
+          <p class="cart-pay__sum">${price(t.sum + (ship || 0))}</p>
+          <ul class="cart-pay__rows">
+            <li><span>Товары · ${t.count}</span><b>${price(t.sum)}</b></li>
+            <li><span>Доставка${ship !== null && daysText(quoteNow.days) ? ' · ' + daysText(quoteNow.days) : ''}</span>
+              <b>${ship === null ? 'посчитаем в чате' : rub(ship)}</b></li>
+          </ul>
+          ${where ? `<p class="cart-pay__for">${ICON_PIN}<span>${esc(where)}</span></p>` : ''}
           <div class="cart-pay__method">
             <span><b>${pm.label}</b><small>${pm.note}</small></span>
             <button type="button" data-cart-back>Изменить</button>
@@ -399,7 +649,7 @@ window.Cart = (function () {
           <div>
             <p class="cart-soon__title">Онлайн-оплата скоро заработает</p>
             <p>Мы подключаем приём платежей — сейчас деньги не списываются. Отправь заказ в Telegram:
-              подтвердим наличие, посчитаем доставку и пришлём, как оплатить.</p>
+              подтвердим наличие, ${ship === null ? 'посчитаем доставку' : 'проверим доставку'} и пришлём, как оплатить.</p>
           </div>
         </div>`,
       foot: `
@@ -415,8 +665,8 @@ window.Cart = (function () {
     const text = prefilled
       ? 'Текст заказа уже в поле сообщения Telegram — осталось нажать «Отправить». Если поле пустое — вставь текст: мы его скопировали.'
       : copied
-        ? 'Мы скопировали текст заказа. Вставь его в чат Telegram и отправь — ответим и посчитаем доставку.'
-        : 'Скопируй текст заказа, вставь его в чат Telegram и отправь — ответим и посчитаем доставку.';
+        ? 'Мы скопировали текст заказа. Вставь его в чат Telegram и отправь — ответим и подтвердим доставку.'
+        : 'Скопируй текст заказа, вставь его в чат Telegram и отправь — ответим и подтвердим доставку.';
     return {
       title: 'Готово',
       body: `
@@ -435,14 +685,17 @@ window.Cart = (function () {
     };
   }
 
-  const VIEWS = { list: listView, checkout: checkoutView, pay: payView, done: doneView };
+  const VIEWS = { list: listView, checkout: checkoutView, points: pointsView, pay: payView, done: doneView };
 
   function render() {
+    unmountMap();
     const list = items();
     if (!list.length) view = 'list';                 // корзину очистили — возвращаемся к списку
     const t = totals(list);
     if (view === 'pay' && !payMethod(t).online) view = 'checkout';   // онлайн-оплата стала недоступна
+    if (view === 'points' && !(smart && state.cityId && state.method === 'pvz')) view = 'checkout';
     if (view !== 'list' && !orderNo) orderNo = newOrderNo();
+    if (view !== 'list') requestQuote();
     const v = VIEWS[view](list, t);
     el.title.textContent = v.title;
     el.qty.textContent = t.count;
@@ -451,8 +704,10 @@ window.Cart = (function () {
     el.body.innerHTML = v.body;
     el.foot.innerHTML = v.foot;
     el.body.classList.toggle('is-fresh', fresh);
+    el.body.classList.toggle('is-points', view === 'points');
     if (fresh) el.body.scrollTop = 0;
     fresh = false;
+    if (view === 'points') mountMap();
     // нажатую кнопку могли только что стереть (например, «×» у товара) — возвращаем фокус в окно
     if (!panel.contains(document.activeElement)) panel.focus({ preventScroll: true });
   }
@@ -462,6 +717,42 @@ window.Cart = (function () {
     fresh = true;
     undo = null;
     render();
+  }
+
+  // Перерисовать текущий экран, не сбивая прокрутку и кнопку, на которой стоял фокус
+  function renderKeep() {
+    const top = el.body.scrollTop;
+    const a = document.activeElement;
+    let again = '';
+    if (a && root.contains(a)) {
+      if (a.id) again = '#' + a.id;
+      else ['cartShip', 'cartMethod', 'cartPay'].forEach((k) => {
+        if (k in a.dataset) again = `[data-${k.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())}="${a.dataset[k]}"]`;
+      });
+    }
+    render();
+    el.body.scrollTop = top;
+    const target = again && root.querySelector(again);
+    if (target) target.focus({ preventScroll: true });
+  }
+
+  // Пришла цена доставки: обновляем строку цены, итог и кнопку — поля ввода не трогаем,
+  // чтобы не сбить человека, который как раз печатает адрес
+  function paintQuote() {
+    if (!isOpen) return;
+    if (view === 'pay') { renderKeep(); return; }
+    if (view !== 'checkout') return;
+    const list = items();
+    const t = totals(list);
+    const q = el.body.querySelector('[data-quote]');
+    if (q) q.innerHTML = quoteHTML();
+    const s = el.body.querySelector('[data-sum]');
+    if (s) s.innerHTML = sumHTML(t);
+    el.foot.innerHTML = checkoutView(list, t).foot;
+  }
+  function paintMore() {
+    const box = el.body.querySelector('[data-ship-more]');
+    if (box) box.innerHTML = moreHTML();
   }
 
   // ----- Открыть / закрыть -----
@@ -511,9 +802,10 @@ window.Cart = (function () {
     isOpen = false;
     root.classList.remove('is-open');
     lockScroll(false);
-    hideTimer = setTimeout(() => { root.hidden = true; }, 420);
+    hideTimer = setTimeout(() => { root.hidden = true; unmountMap(); }, 420);
     undo = null;
     notice = '';
+    hideSug();
     if (lastFocus && lastFocus.focus && document.contains(lastFocus)) lastFocus.focus({ preventScroll: true });
     const back = inHistory && !fromHistory;
     inHistory = false;
@@ -554,20 +846,134 @@ window.Cart = (function () {
     });
   }
 
-  function pickDelivery(id) {
-    state.delivery = state.delivery === id ? '' : id;   // повторное нажатие снимает выбор
-    save();
-    root.querySelectorAll('[data-cart-ship]').forEach((b) => {
-      const on = b.dataset.cartShip === state.delivery;
-      b.classList.toggle('is-active', on);
-      b.setAttribute('aria-pressed', on);
-    });
-    if (state.delivery) needDelivery(false);
-    syncSendLink();
-  }
   function syncSendLink() {
     const href = S.telegramLink(message());
     root.querySelectorAll('[data-cart-send]').forEach((a) => { a.href = href; });
+  }
+
+  // ----- Выбор доставки -----
+  function pickService(id) {
+    if (id === state.delivery) return;
+    state.delivery = id;
+    state.point = null;
+    state.cityId = '';            // у каждой службы свой справочник городов — найдём город заново
+    save();
+    renderKeep();
+    resolveCity();
+  }
+
+  function pickMethod(id) {
+    if (id === state.method) return;
+    state.method = id;
+    save();
+    renderKeep();
+  }
+
+  // Город уже вписан, а номера в справочнике службы нет (сменили службу) — ищем его по названию
+  function resolveCity() {
+    const name = state.city, sid = state.delivery;
+    if (!smart || !name || !sid) return;
+    D.cities(sid, name).then((list) => {
+      const c = (list || []).find((x) => norm(x.name) === norm(name));
+      if (!c || state.delivery !== sid || state.city !== name || state.cityId) return;
+      state.cityId = String(c.id);
+      save();
+      if (view !== 'checkout') return;
+      if (state.method === 'pvz') paintMore();        // для курьера там поля адреса — их не трогаем
+      requestQuote();
+      paintQuote();
+    }, () => {});
+  }
+
+  // Подсказки города
+  let sugList = [];
+  let sugSeq = 0;
+  let sugTimer = 0;
+
+  function searchCity() {
+    clearTimeout(sugTimer);
+    const q = state.city, seq = ++sugSeq;
+    if (q.length < 2) { hideSug(); return; }
+    sugTimer = setTimeout(() => {
+      D.cities(state.delivery, q).then((list) => { if (seq === sugSeq) showSug(list); }, () => { if (seq === sugSeq) showSug([]); });
+    }, 200);
+  }
+
+  function showSug(list) {
+    const ul = root.querySelector('#cartSug');
+    const input = root.querySelector('#cartCity');
+    if (!ul || !input) return;
+    sugList = (list || []).slice(0, 8);
+    ul.innerHTML = sugList.length
+      ? sugList.map((c, i) => `<li role="option"><button type="button" data-cart-city="${i}"><b>${esc(c.name)}</b><small>${esc(c.region || '')}</small></button></li>`).join('')
+      : `<li class="cart-sug__none">Не нашли такой город${D.MODE === 'demo' ? ' (в демо — только крупные города)' : ''} — проверь название или напиши нам в Telegram</li>`;
+    ul.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+  }
+
+  function hideSug() {
+    sugSeq++;
+    clearTimeout(sugTimer);
+    sugList = [];
+    const ul = root.querySelector('#cartSug');
+    const input = root.querySelector('#cartCity');
+    if (ul) { ul.hidden = true; ul.innerHTML = ''; }
+    if (input) input.setAttribute('aria-expanded', 'false');
+  }
+
+  function onCityInput(input) {
+    state.city = clean(input.value, 60);
+    if (smart && state.cityId) {                     // город поменяли руками — прежний выбор больше не действует
+      state.cityId = '';
+      state.point = null;
+      requestQuote();
+      paintMore();
+      paintQuote();
+    }
+    if (smart) searchCity();
+  }
+
+  function pickCity(i) {
+    const c = sugList[i];
+    if (!c) return;
+    if (String(c.id) !== state.cityId) state.point = null;
+    state.city = clean(c.name, 60);
+    state.cityId = String(c.id);
+    hideSug();
+    save();
+    if (document.activeElement && document.activeElement.id === 'cartCity') document.activeElement.blur();   // на телефоне прячем клавиатуру
+    renderKeep();
+  }
+
+  // «Оплатить», а доставка заполнена не до конца — показываем, чего не хватает
+  function missing() {
+    if (!state.delivery) return ['Выбери службу доставки — СДЭК или Почта России', ''];
+    if (!state.city || (smart && !state.cityId)) return [smart ? 'Выбери город из подсказок' : 'Укажи город', '#cartCity'];
+    if (state.method === 'door' && !state.street) return ['Укажи улицу и дом — куда привезти заказ', '#cartStreet'];
+    if (state.method === 'pvz' && smart && !state.point) {
+      return [(state.delivery === 'post' ? 'Выбери отделение' : 'Выбери пункт выдачи') + ' на карте', '[data-cart-points]'];
+    }
+    return null;
+  }
+
+  function needShip(msg, focusOn) {
+    const step = root.querySelector('[data-step="ship"]');
+    if (!step) return;
+    const box = step.querySelector('.cart-step__need');
+    step.classList.remove('is-need');
+    if (box) box.textContent = msg;
+    if (!msg) return;
+    void step.offsetWidth;                           // чтобы «встряска» сыграла и при повторном нажатии
+    step.classList.add('is-need');
+    const target = focusOn && step.querySelector(focusOn);
+    (target || box).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (target && !target.disabled) target.focus({ preventScroll: true });
+  }
+
+  function goPay() {
+    const miss = missing();
+    if (miss) { needShip(miss[0], miss[1]); return; }
+    show('pay');
   }
 
   // Способ оплаты: подсвечиваем выбранный и меняем главную кнопку внизу («Оплатить» или «Отправить в Telegram»)
@@ -583,28 +989,10 @@ window.Cart = (function () {
     el.foot.innerHTML = checkoutView(list, totals(list)).foot;
   }
 
-  // «Оплатить» без выбранной доставки — показываем, чего не хватает
-  function needDelivery(on) {
-    const step = root.querySelector('[data-step="ship"]');
-    if (!step) return;
-    step.classList.remove('is-need');
-    if (on) {
-      void step.offsetWidth;                         // чтобы «встряска» сыграла и при повторном нажатии
-      step.classList.add('is-need');
-      step.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-    step.querySelector('.cart-step__need').textContent = on ? 'Выбери доставку — СДЭК или Почта России' : '';
-  }
-
-  function goPay() {
-    if (!state.delivery) { needDelivery(true); return; }
-    show('pay');
-  }
-
   // ----- Нажатия внутри окна -----
   root.addEventListener('click', (e) => {
     const t = e.target.closest('button, a, [data-cart-close]');
-    if (!t || !root.contains(t)) return;
+    if (!t || !root.contains(t) || t.closest('.leaflet-container')) return;   // нажатия по карте — её дело
     const d = t.dataset;
     if ('cartClose' in d) hide();
     else if ('cartBack' in d) show(view === 'checkout' ? 'list' : 'checkout');
@@ -612,7 +1000,12 @@ window.Cart = (function () {
     else if ('cartUndo' in d) restore();
     else if ('cartClear' in d) clear(true);
     else if ('cartGo' in d) { if (d.cartGo === 'pay') goPay(); else show(d.cartGo); }
-    else if ('cartShip' in d) pickDelivery(d.cartShip);
+    else if ('cartShip' in d) pickService(d.cartShip);
+    else if ('cartMethod' in d) pickMethod(d.cartMethod);
+    else if ('cartCity' in d) pickCity(Number(d.cartCity));
+    else if ('cartPoints' in d) openPoints();
+    else if ('cartPoint' in d) pickPoint(d.cartPoint, true);
+    else if ('cartPointOk' in d) confirmPoint();
     else if ('cartPay' in d) pickPay(d.cartPay);
     else if ('cartSend' in d) send();
     else if ('cartCopy' in d) copyAgain(t);
@@ -624,16 +1017,35 @@ window.Cart = (function () {
     }
   });
 
+  // Нажатие на подсказку не должно уводить фокус из поля города (иначе список исчезнет раньше времени)
+  root.addEventListener('mousedown', (e) => { if (e.target.closest('.cart-sug')) e.preventDefault(); });
+
   root.addEventListener('input', (e) => {
-    if (e.target.id !== 'cartCity') return;
-    state.city = cleanCity(e.target.value);
+    const id = e.target.id;
+    if (id === 'cartCity') onCityInput(e.target);
+    else if (id === 'cartStreet') { state.street = clean(e.target.value, 120); if (state.street) needShip(''); }
+    else if (id === 'cartFlat') state.flat = clean(e.target.value, 20);
+    else return;
     save();
     syncSendLink();
   });
 
-  // Клавиатура: Esc закрывает, Tab ходит по кругу только внутри окна
+  root.addEventListener('focusin', (e) => {
+    if (e.target.id === 'cartCity' && smart && !state.cityId) searchCity();
+  });
+  root.addEventListener('focusout', (e) => {
+    if (e.target.id !== 'cartCity') return;
+    setTimeout(() => { if (document.activeElement !== e.target) hideSug(); }, 150);
+  });
+
+  // Клавиатура: Esc закрывает, Tab ходит по кругу только внутри окна, Enter в поле города — первая подсказка
   root.addEventListener('keydown', (e) => {
     e.stopPropagation();                             // стрелки не должны листать фото товара под окном
+    if (e.target.id === 'cartCity' && sugList.length && (e.key === 'Enter' || e.key === 'Escape')) {
+      e.preventDefault();
+      if (e.key === 'Enter') pickCity(0); else hideSug();
+      return;
+    }
     if (e.key === 'Escape') { hide(); return; }
     if (e.key !== 'Tab') return;
     const f = Array.from(panel.querySelectorAll('a[href], button:not([disabled]), input, [tabindex="0"]')).filter((x) => x.offsetParent !== null);

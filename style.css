@@ -1092,7 +1092,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   position: absolute;
   top: 0;
   right: 0;
-  bottom: 0;
+  height: var(--fit-h, 100%);                /* высота видимой части экрана — считает cart.js (iPhone) */
   width: min(480px, 100%);
   display: flex;
   flex-direction: column;

@@ -60,9 +60,9 @@ window.Cart = (function () {
   // items — номера товаров (id) в том порядке, в каком их добавляли;
   // delivery — служба (cdek / post), method — способ (pvz — пункт выдачи / отделение, door — курьер до двери),
   // city / cityId — город (название и номер в справочнике службы), index — почтовый индекс (для Почты),
-  // point — выбранный пункт,
+  // point — выбранный пункт (на карте), pointText — пункт СДЭК, вписанный покупателем вручную,
   // street / flat — адрес для курьера, pay — способ оплаты.
-  const state = { items: [], delivery: '', method: 'pvz', city: '', cityId: '', index: '', point: null, street: '', flat: '', pay: 'card' };
+  const state = { items: [], delivery: '', method: 'pvz', city: '', cityId: '', index: '', point: null, pointText: '', street: '', flat: '', pay: 'card' };
 
   function load() {
     try {
@@ -78,6 +78,7 @@ window.Cart = (function () {
         ? { id: clean(p.id, 80), name: clean(p.name, 120), address: clean(p.address, 200), hours: clean(p.hours, 120) }
         : null;
       state.street = clean(d.street, 120);
+      state.pointText = clean(d.pointText, 150);
       state.flat = clean(d.flat, 20);
       state.pay = PAYMENT.some((x) => x.id === d.pay) ? d.pay : 'card';
     } catch (e) { /* хранилище выключено (режим «инкогнито») — корзина проживёт до закрытия страницы */ }
@@ -168,6 +169,7 @@ window.Cart = (function () {
     if (office) parts.push('отделение «' + office.name + '», ' + office.address);
     else if (state.method === 'pvz' && byMap() && state.point) parts.push(state.point.name + ' — ' + state.point.address);
     else if (state.city) parts.push('г. ' + state.city);
+    if (state.method === 'pvz' && !byMap() && !byIndex() && state.pointText) parts.push('пункт: ' + state.pointText);
     if (state.method === 'door' && state.street) parts.push(state.street + (state.flat ? ', кв./офис ' + state.flat : ''));
     return parts.join(', ');
   }
@@ -461,6 +463,14 @@ window.Cart = (function () {
     if (byIndex()) {
       return `<p class="cart-hint">Индекс — номер почтового отделения, где удобно получить посылку.
         Не знаешь его — <a href="https://www.pochta.ru/offices" target="_blank" rel="noopener">найди на сайте Почты</a>.</p>`;
+    }
+    if (!byMap() && state.delivery === 'cdek') {
+      // договора со СДЭК ещё нет — пункт покупатель находит на сайте СДЭК и вписывает сам
+      return `
+        <label class="cart-field"><span>Пункт выдачи СДЭК</span>
+          <input type="text" id="cartPoint" maxlength="150" autocomplete="off" placeholder="Адрес пункта, например ул. Ленина, 10" value="${esc(state.pointText)}"></label>
+        <p class="cart-hint">Выбери удобный пункт на <a href="https://www.cdek.ru/ru/offices" target="_blank" rel="noopener">карте СДЭК</a>
+          и впиши его адрес. Не знаешь — подберём вместе в чате.</p>`;
     }
     if (!byMap()) {
       return `<p class="cart-hint">${state.delivery === 'post' ? 'Ближайшее отделение' : 'Удобный пункт выдачи'} подберём вместе в чате.</p>`;
@@ -803,6 +813,27 @@ window.Cart = (function () {
     if (box) box.innerHTML = moreHTML();
   }
 
+  // ----- iPhone: окно по размеру видимой части экрана -----
+  // В Safari на iPhone (особенно iOS 26) и в браузере Telegram нижняя панель браузера может закрывать низ
+  // окна, пока страницу не пролистаешь: кнопка «Оформить заказ» / «Оплатить» пряталась под ней.
+  // Поэтому высоту окна считаем сами — берём НАИМЕНЬШУЮ из высот, которые сообщает браузер, — и
+  // пересчитываем при каждом изменении экрана. Пока покупатель печатает (открыта клавиатура),
+  // окно не трогаем: iPhone сам прокручивает экран к полю ввода.
+  const vv = window.visualViewport;
+  function fitScreen() {
+    if (!isOpen) return;
+    const a = document.activeElement;
+    const typing = a && a.tagName === 'INPUT' && root.contains(a);
+    const sizes = [window.innerHeight, document.documentElement.clientHeight];
+    if (vv && !typing) sizes.push(vv.height);
+    const h = Math.round(Math.min(...sizes.filter((x) => x > 0)));
+    if (h > 0 && isFinite(h)) panel.style.setProperty('--fit-h', h + 'px');
+  }
+  if (vv) vv.addEventListener('resize', fitScreen);
+  window.addEventListener('resize', fitScreen);
+  window.addEventListener('orientationchange', () => setTimeout(fitScreen, 300));
+  root.addEventListener('focusout', () => setTimeout(fitScreen, 300));   // клавиатура спряталась
+
   // ----- Открыть / закрыть -----
   // Пока окно открыто, страница под ним не прокручивается. На компьютере при этом исчезает полоса
   // прокрутки — добавляем отступ такой же ширины, чтобы страница не «прыгала» вбок.
@@ -832,6 +863,8 @@ window.Cart = (function () {
     lockScroll(true);
     void root.offsetWidth;                           // чтобы окно выехало плавно, а не появилось сразу
     root.classList.add('is-open');
+    fitScreen();
+    [150, 500, 1200].forEach((ms) => setTimeout(fitScreen, ms));   // iPhone сообщает размеры с опозданием
     panel.focus({ preventScroll: true });
     inHistory = !!restored;
     if (!restored) {
@@ -1016,6 +1049,9 @@ window.Cart = (function () {
       return [byMap() ? 'Выбери город из подсказок' : 'Укажи город', '#cartCity'];
     }
     if (state.method === 'door' && !state.street) return ['Укажи улицу и дом — куда привезти заказ', '#cartStreet'];
+    if (state.method === 'pvz' && state.delivery === 'cdek' && !byMap() && !state.pointText) {
+      return ['Впиши адрес пункта выдачи СДЭК', '#cartPoint'];
+    }
     if (state.method === 'pvz' && byMap() && !state.point) {
       return [(state.delivery === 'post' ? 'Выбери отделение' : 'Выбери пункт выдачи') + ' на карте', '[data-cart-points]'];
     }
@@ -1092,6 +1128,7 @@ window.Cart = (function () {
     else if (id === 'cartStreet') { state.street = clean(e.target.value, 120); if (state.street) needShip(''); }
     else if (id === 'cartFlat') state.flat = clean(e.target.value, 20);
     else if (id === 'cartIndex') onIndexInput(e.target);
+    else if (id === 'cartPoint') { state.pointText = clean(e.target.value, 150); if (state.pointText) needShip(''); }
     else return;
     save();
     syncSendLink();

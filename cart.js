@@ -813,27 +813,6 @@ window.Cart = (function () {
     if (box) box.innerHTML = moreHTML();
   }
 
-  // ----- iPhone: окно по размеру видимой части экрана -----
-  // В Safari на iPhone (особенно iOS 26) и в браузере Telegram нижняя панель браузера может закрывать низ
-  // окна, пока страницу не пролистаешь: кнопка «Оформить заказ» / «Оплатить» пряталась под ней.
-  // Поэтому высоту окна считаем сами — берём НАИМЕНЬШУЮ из высот, которые сообщает браузер, — и
-  // пересчитываем при каждом изменении экрана. Пока покупатель печатает (открыта клавиатура),
-  // окно не трогаем: iPhone сам прокручивает экран к полю ввода.
-  const vv = window.visualViewport;
-  function fitScreen() {
-    if (!isOpen) return;
-    const a = document.activeElement;
-    const typing = a && a.tagName === 'INPUT' && root.contains(a);
-    const sizes = [window.innerHeight, document.documentElement.clientHeight];
-    if (vv && !typing) sizes.push(vv.height);
-    const h = Math.round(Math.min(...sizes.filter((x) => x > 0)));
-    if (h > 0 && isFinite(h)) panel.style.setProperty('--fit-h', h + 'px');
-  }
-  if (vv) vv.addEventListener('resize', fitScreen);
-  window.addEventListener('resize', fitScreen);
-  window.addEventListener('orientationchange', () => setTimeout(fitScreen, 300));
-  root.addEventListener('focusout', () => setTimeout(fitScreen, 300));   // клавиатура спряталась
-
   // ----- Открыть / закрыть -----
   // Пока окно открыто, страница под ним не прокручивается. На компьютере при этом исчезает полоса
   // прокрутки — добавляем отступ такой же ширины, чтобы страница не «прыгала» вбок.
@@ -863,8 +842,6 @@ window.Cart = (function () {
     lockScroll(true);
     void root.offsetWidth;                           // чтобы окно выехало плавно, а не появилось сразу
     root.classList.add('is-open');
-    fitScreen();
-    [150, 500, 1200].forEach((ms) => setTimeout(fitScreen, ms));   // iPhone сообщает размеры с опозданием
     panel.focus({ preventScroll: true });
     inHistory = !!restored;
     if (!restored) {

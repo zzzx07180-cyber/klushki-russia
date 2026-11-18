@@ -79,10 +79,10 @@
       </div>
       <div class="pp__buttons" id="ppButtons">
         ${S.orderButton(p)}
-        <a href="tel:+70000000000" class="btn btn--dark">Позвонить</a>
+        ${p.inStock ? `<a href="${esc(S.TELEGRAM)}" class="btn btn--dark" target="_blank" rel="noopener">Спросить в Telegram</a>` : ''}
       </div>
       <p class="pp__hint">${p.inStock
-        ? 'Добавь товар в корзину и нажми «Оформить заказ» — корзина соберёт сообщение для Telegram. Оплаты на сайте нет.'
+        ? 'Добавь товар в корзину и оформи заказ: выбери доставку и способ оплаты. Есть вопрос — напиши нам в Telegram.'
         : '«Узнать о поступлении» скопирует текст и откроет чат в Telegram — останется вставить и отправить.'}</p>
 
       ${repairHTML}

@@ -1,23 +1,34 @@
 // ===== Корзина =====
-// Покупатель складывает товары в корзину, а при оформлении она собирает один общий текст заказа
-// для Telegram. Оплаты на сайте нет, и сама корзина никуда ничего не отправляет: список товаров
+// Покупатель складывает товары в корзину, выбирает доставку и способ оплаты, а корзина собирает
+// один общий текст заказа для Telegram. Сама корзина никуда ничего не отправляет: список товаров
 // хранится только в браузере покупателя (localStorage) — поэтому не пропадает при переходе между
 // страницами и при следующем заходе на сайт.
 // Товары штучные (каждая клюшка — одна), поэтому «количества» нет: товар либо в корзине, либо нет.
 // Значок корзины стоит в шапке каждой страницы (кнопка #cartBtn), а выдвижное окно этот скрипт
 // создаёт сам — править его нужно только здесь. Оформление — в style.css, блок «КОРЗИНА».
 //
-// В окне три экрана: «Корзина» (список) → «Оформление» (доставка, итог) → «Готово» (текст заказа).
+// В окне четыре экрана: «Корзина» (список) → «Оформление» (доставка, способ оплаты, итог) →
+// «Оплата» (окно оплаты картой / СБП) → «Готово» (текст заказа для Telegram).
+// ⚠️ Онлайн-оплата пока НЕ подключена: окно оплаты уже нарисовано, но деньги не списываются —
+// в нём честно написано «скоро» и предложено отправить заказ в Telegram. Когда подключим платёжный
+// сервис (банк), в экране «Оплата» вместо этой надписи появится переход на защищённую страницу банка:
+// данные карты покупатель будет вводить там, а не на нашем сайте.
 
 window.Cart = (function () {
   const S = window.Shop;
   const { esc, price, hasPrice, title, photos, category, specsText } = S;
   const PRODUCTS = window.PRODUCTS || [];
   const KEY = 'klushki-cart';                       // под этим именем корзина лежит в браузере
-  const PHONE = { href: 'tel:+70000000000', text: '+7 (000) 000-00-00' };
   const DELIVERY = [
     { id: 'cdek', label: 'СДЭК',         note: 'До пункта выдачи или курьером' },
     { id: 'post', label: 'Почта России', note: 'В любое отделение страны' }
+  ];
+  // Способы оплаты. online: true — оплата на сайте (окно «Оплата»), false — договариваемся в чате.
+  // chips — значки платёжных систем справа (просто надписи, без чужих логотипов).
+  const PAYMENT = [
+    { id: 'card', label: 'Картой онлайн', note: 'МИР, Visa, Mastercard',         chips: ['МИР', 'VISA', 'MC'], online: true, inText: 'картой онлайн' },
+    { id: 'sbp',  label: 'СБП',           note: 'По QR-коду в приложении банка', chips: ['СБП'],               online: true, inText: 'СБП' },
+    { id: 'chat', label: 'Через Telegram', note: 'Обсудим оплату с менеджером',  chips: [],                    online: false, inText: 'обсудим в чате' }
   ];
   const WORDS = ['товар', 'товара', 'товаров'];
 
@@ -31,10 +42,12 @@ window.Cart = (function () {
   const ICON_CART = '<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h3.4l3 13.2h12.6l2.6-9.4H6.8"/><circle cx="11" cy="22.6" r="1.7"/><circle cx="20" cy="22.6" r="1.7"/></svg>';
   const ICON_TG = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M21.5 3.6 2.9 10.8c-1.3.5-1.3 1.2-.2 1.6l4.8 1.5 1.8 5.6c.2.6.4.8.8.8.4 0 .6-.2.9-.5l2.3-2.2 4.8 3.5c.9.5 1.5.2 1.7-.8l3.1-14.8c.3-1.3-.5-1.9-1.4-1.5ZM8.7 13.6l9.4-5.9c.5-.3.9-.1.5.2l-7.9 7.2-.3 3.3-1.7-4.8Z"/></svg>';
   const ICON_DONE = '<svg class="cart-done__icon" viewBox="0 0 96 96" fill="none" aria-hidden="true"><circle class="cart-done__ring" cx="48" cy="48" r="42" stroke-width="4"/><path class="cart-done__check" d="M30 49.5 43 62l24-27" stroke-width="6"/></svg>';
+  const ICON_LOCK = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="1.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>';
+  const ICON_SOON = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>';
 
   // ----- Что лежит в корзине -----
-  // items — номера товаров (id) в том порядке, в каком их добавляли
-  const state = { items: [], delivery: '', city: '' };
+  // items — номера товаров (id) в том порядке, в каком их добавляли; pay — выбранный способ оплаты
+  const state = { items: [], delivery: '', city: '', pay: 'card' };
 
   function load() {
     try {
@@ -42,6 +55,7 @@ window.Cart = (function () {
       state.items = Array.isArray(d.items) ? [...new Set(d.items.map(String))] : [];
       state.delivery = DELIVERY.some((x) => x.id === d.delivery) ? d.delivery : '';
       state.city = typeof d.city === 'string' ? cleanCity(d.city) : '';
+      state.pay = PAYMENT.some((x) => x.id === d.pay) ? d.pay : 'card';
     } catch (e) { /* хранилище выключено (режим «инкогнито») — корзина проживёт до закрытия страницы */ }
   }
   function save() {
@@ -68,6 +82,19 @@ window.Cart = (function () {
     return { count: list.length, sum: priced.reduce((s, p) => s + p.price, 0), ask: list.length - priced.length };
   }
 
+  // Оплатить на сайте можно, только когда у всех товаров есть цена: «цену по запросу» сначала уточняем в чате
+  const canPayOnline = (t) => t.count > 0 && t.ask === 0 && t.sum > 0;
+  // Какой способ оплаты действует сейчас: онлайн недоступен — значит, через Telegram
+  function payMethod(t) {
+    const m = PAYMENT.find((x) => x.id === state.pay) || PAYMENT[0];
+    return m.online && !canPayOnline(t) ? PAYMENT.find((x) => !x.online) : m;
+  }
+
+  // Номер заказа — чтобы покупателю и нам было на что ссылаться в переписке. Появляется на экране
+  // «Оформление»; поменялся состав корзины — при следующем оформлении будет новый номер.
+  let orderNo = '';
+  const newOrderNo = () => String(Date.now()).slice(-6);
+
   // ----- Изменения корзины -----
   let undo = null;        // что вернуть по кнопке «Вернуть»: { items: прежний список, text: подпись }
 
@@ -76,6 +103,7 @@ window.Cart = (function () {
     if (!p || !p.inStock || has(id)) return;
     state.items.push(String(id));
     undo = null;
+    orderNo = '';
     save();
     refresh();
     flyPuck(fromEl);
@@ -84,12 +112,14 @@ window.Cart = (function () {
     const p = find(id);
     undo = { items: state.items.slice(), text: p ? 'Убрали «' + fullName(p) + '»' : 'Товар убран' };
     state.items = state.items.filter((x) => x !== String(id));
+    orderNo = '';
     save();
     refresh();
   }
   function clear(keepUndo) {
     undo = keepUndo ? { items: state.items.slice(), text: 'Корзина очищена' } : null;
     state.items = [];
+    orderNo = '';
     save();
     refresh();
   }
@@ -97,6 +127,7 @@ window.Cart = (function () {
     if (!undo) return;
     state.items = undo.items.filter((id) => { const p = find(id); return p && p.inStock; });
     undo = null;
+    orderNo = '';
     save();
     refresh();
   }
@@ -159,7 +190,7 @@ window.Cart = (function () {
   function message() {
     const list = items();
     const t = totals(list);
-    const lines = ['Здравствуйте! Хочу заказать:', ''];
+    const lines = [orderNo ? `Здравствуйте! Хочу оформить заказ № ${orderNo}:` : 'Здравствуйте! Хочу заказать:', ''];
     list.forEach((p, i) => {
       const type = S.TYPE_BADGE[p.type] ? ', ' + S.TYPE_BADGE[p.type].toLowerCase() : '';
       const details = [specsText(p), p.repair && 'Ремонт: ' + S.repairLabel(p.repair).toLowerCase()].filter(Boolean).join(' · ');
@@ -177,6 +208,7 @@ window.Cart = (function () {
     if (ship || state.city) {
       lines.push('Доставка: ' + [ship && ship.label, state.city && 'город ' + state.city].filter(Boolean).join(', '));
     }
+    lines.push('Способ оплаты: ' + payMethod(t).inText);
     return lines.join('\n').trim();
   }
 
@@ -207,7 +239,7 @@ window.Cart = (function () {
   };
 
   let isOpen = false;
-  let view = 'list';      // какой экран показан: list — корзина, checkout — оформление, done — готово
+  let view = 'list';      // какой экран показан: list — корзина, checkout — оформление, pay — оплата, done — готово
   let fresh = false;      // экран только что сменился — содержимое плавно появляется
   let copied = false;     // получилось ли скопировать текст заказа
 
@@ -241,6 +273,11 @@ window.Cart = (function () {
       </div>`;
   }
 
+  // Пояснение под итогом: что в сумму не вошло
+  const noteText = (t) => t.sum && t.ask
+    ? `Без ${t.ask === 1 ? 'товара' : 'товаров'} с ценой по запросу и без доставки — их посчитаем в чате.`
+    : 'Доставка считается отдельно — зависит от города.';
+
   // Полоска-сообщение над списком: «Убрали … — Вернуть» или «Товар уже продан»
   function barsHTML() {
     return (notice ? `<p class="cart__bar">${esc(notice)}</p>` : '') +
@@ -267,19 +304,23 @@ window.Cart = (function () {
         <ul class="cart__list">${list.map(itemHTML).join('')}</ul>
         <button type="button" class="cart__clear" data-cart-clear>Очистить корзину</button>`,
       foot: `${totalHTML(t)}
-        <p class="cart__note">${t.sum && t.ask
-          ? `Без ${t.ask === 1 ? 'товара' : 'товаров'} с ценой по запросу и без доставки — их посчитаем в чате.`
-          : 'Доставка считается отдельно — зависит от города.'}</p>
+        <p class="cart__note">${noteText(t)}</p>
         <button type="button" class="btn cart__cta" data-cart-go="checkout">Оформить заказ</button>`
     };
   }
 
+  // Ссылка «отправить заказ в Telegram»: копирует текст заказа и показывает экран «Готово»
+  const sendLink = (label, cls) =>
+    `<a href="${esc(S.telegramLink(message()))}" class="${cls}" target="_blank" rel="noopener" data-cart-send>${label}</a>`;
+
   // ----- Экран «Оформление» -----
   function checkoutView(list, t) {
+    const online = canPayOnline(t);
+    const pm = payMethod(t);
     return {
       title: 'Оформление',
       body: `
-        <section class="cart-step">
+        <section class="cart-step" data-step="ship">
           <p class="cart-step__label"><i>1</i> Доставка</p>
           <div class="cart-ship">
             ${DELIVERY.map((d) => `
@@ -287,6 +328,7 @@ window.Cart = (function () {
                 <b>${d.label}</b><span>${d.note}</span>
               </button>`).join('')}
           </div>
+          <p class="cart-step__need" role="alert"></p>
           <label class="cart-field">
             <span>Город <small>— если уже знаешь</small></span>
             <input type="text" id="cartCity" maxlength="60" autocomplete="address-level2" placeholder="Например, Казань" value="${esc(state.city)}">
@@ -294,21 +336,75 @@ window.Cart = (function () {
         </section>
 
         <section class="cart-step">
-          <p class="cart-step__label"><i>2</i> Твой заказ</p>
+          <p class="cart-step__label"><i>2</i> Оплата</p>
+          <div class="cart-pm">
+            ${PAYMENT.map((m) => {
+              const off = m.online && !online;
+              const on = m.id === pm.id;
+              return `
+              <button type="button" class="cart-pm__opt${on ? ' is-active' : ''}" data-cart-pay="${m.id}" aria-pressed="${on}"${off ? ' disabled' : ''}>
+                <span class="cart-pm__dot" aria-hidden="true"></span>
+                <span class="cart-pm__text"><b>${m.label}</b><small>${m.note}</small></span>
+                ${m.chips.length ? `<span class="cart-pm__chips" aria-hidden="true">${m.chips.map((c) => `<i>${c}</i>`).join('')}</span>`
+                  : `<span class="cart-pm__tg" aria-hidden="true">${ICON_TG}</span>`}
+              </button>`;
+            }).join('')}
+          </div>
+          ${online ? '' : `<p class="cart-step__text cart-pm__why">У ${t.count === 1 ? 'товара' : 'части товаров'} цена по запросу —
+            сначала уточним её в Telegram, потом расскажем, как оплатить.</p>`}
+        </section>
+
+        <section class="cart-step">
+          <p class="cart-step__label"><i>3</i> Твой заказ <small class="cart-step__no">№ ${orderNo}</small></p>
           <ul class="cart-sum">
             ${list.map((p) => `<li><span>${esc(fullName(p))}</span><b>${hasPrice(p.price) ? price(p.price) : 'по запросу'}</b></li>`).join('')}
           </ul>
           ${totalHTML(t)}
-        </section>
-
-        <section class="cart-step">
-          <p class="cart-step__label"><i>3</i> Отправка</p>
-          <p class="cart-step__text">Оплаты на сайте нет. Нажми кнопку — заказ соберётся в одно сообщение
-            и откроется Telegram. Мы ответим, пришлём живые фото и посчитаем доставку.</p>
+          <p class="cart__note">${noteText(t)}</p>
         </section>`,
+      foot: pm.online
+        ? `<button type="button" class="btn cart__cta" data-cart-go="pay">${ICON_LOCK} Оплатить ${price(t.sum)}</button>
+           ${sendLink('Есть вопрос? Написать в Telegram', 'cart__alt')}`
+        : `${sendLink(ICON_TG + ' Отправить заказ в Telegram', 'btn cart__cta')}
+           <p class="cart__note cart__note--center">Заказ соберётся в одно сообщение — ответим, пришлём живые фото и расскажем, как оплатить.</p>`
+    };
+  }
+
+  // ----- Экран «Оплата» -----
+  // Окно оплаты: сумма, номер заказа, способ. Приём платежей ещё не подключён — честно пишем «скоро»
+  // и предлагаем отправить заказ в Telegram. Когда подключим банк — здесь будет кнопка перехода
+  // на его защищённую страницу оплаты (см. начало файла).
+  function payView(list, t) {
+    const pm = payMethod(t);
+    const ship = DELIVERY.find((d) => d.id === state.delivery);
+    const where = [ship && ship.label, state.city].filter(Boolean).join(', ');
+    return {
+      title: 'Оплата',
+      body: `
+        <div class="cart-pay">
+          <div class="cart-pay__top">
+            <span class="cart-pay__secure">${ICON_LOCK} Защищённая оплата</span>
+            <span>Заказ № ${orderNo}</span>
+          </div>
+          <p class="cart-pay__label">К оплате</p>
+          <p class="cart-pay__sum">${price(t.sum)}</p>
+          <p class="cart-pay__for">${t.count} ${plural(t.count, WORDS)}${where ? ' · доставка: ' + esc(where) : ''}</p>
+          <div class="cart-pay__method">
+            <span><b>${pm.label}</b><small>${pm.note}</small></span>
+            <button type="button" data-cart-back>Изменить</button>
+          </div>
+        </div>
+        <div class="cart-soon">
+          ${ICON_SOON}
+          <div>
+            <p class="cart-soon__title">Онлайн-оплата скоро заработает</p>
+            <p>Мы подключаем приём платежей — сейчас деньги не списываются. Отправь заказ в Telegram:
+              подтвердим наличие, посчитаем доставку и пришлём, как оплатить.</p>
+          </div>
+        </div>`,
       foot: `
-        <a href="${esc(S.telegramLink(message()))}" class="btn cart__cta" target="_blank" rel="noopener" data-cart-send>${ICON_TG} Отправить в Telegram</a>
-        <a href="${PHONE.href}" class="cart__alt">или позвонить: ${PHONE.text}</a>`
+        ${sendLink(ICON_TG + ' Отправить заказ в Telegram', 'btn cart__cta')}
+        <button type="button" class="cart__alt" data-cart-back>Выбрать другой способ оплаты</button>`
     };
   }
 
@@ -327,6 +423,7 @@ window.Cart = (function () {
         <div class="cart-done">
           ${ICON_DONE}
           <p class="cart-done__title">${copied ? 'Заказ скопирован' : 'Заказ собран'}</p>
+          ${orderNo ? `<p class="cart-done__no">Заказ № ${orderNo}</p>` : ''}
           <p class="cart-done__text">${text}</p>
           <pre class="cart-done__msg" tabindex="0" aria-label="Текст заказа">${esc(msg)}</pre>
           <p class="cart-done__ask">Сообщение уже отправлено?</p>
@@ -338,12 +435,14 @@ window.Cart = (function () {
     };
   }
 
-  const VIEWS = { list: listView, checkout: checkoutView, done: doneView };
+  const VIEWS = { list: listView, checkout: checkoutView, pay: payView, done: doneView };
 
   function render() {
     const list = items();
     if (!list.length) view = 'list';                 // корзину очистили — возвращаемся к списку
     const t = totals(list);
+    if (view === 'pay' && !payMethod(t).online) view = 'checkout';   // онлайн-оплата стала недоступна
+    if (view !== 'list' && !orderNo) orderNo = newOrderNo();
     const v = VIEWS[view](list, t);
     el.title.textContent = v.title;
     el.qty.textContent = t.count;
@@ -463,11 +562,43 @@ window.Cart = (function () {
       b.classList.toggle('is-active', on);
       b.setAttribute('aria-pressed', on);
     });
+    if (state.delivery) needDelivery(false);
     syncSendLink();
   }
   function syncSendLink() {
-    const a = root.querySelector('[data-cart-send]');
-    if (a) a.href = S.telegramLink(message());
+    const href = S.telegramLink(message());
+    root.querySelectorAll('[data-cart-send]').forEach((a) => { a.href = href; });
+  }
+
+  // Способ оплаты: подсвечиваем выбранный и меняем главную кнопку внизу («Оплатить» или «Отправить в Telegram»)
+  function pickPay(id) {
+    state.pay = id;
+    save();
+    root.querySelectorAll('[data-cart-pay]').forEach((b) => {
+      const on = b.dataset.cartPay === id;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-pressed', on);
+    });
+    const list = items();
+    el.foot.innerHTML = checkoutView(list, totals(list)).foot;
+  }
+
+  // «Оплатить» без выбранной доставки — показываем, чего не хватает
+  function needDelivery(on) {
+    const step = root.querySelector('[data-step="ship"]');
+    if (!step) return;
+    step.classList.remove('is-need');
+    if (on) {
+      void step.offsetWidth;                         // чтобы «встряска» сыграла и при повторном нажатии
+      step.classList.add('is-need');
+      step.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    step.querySelector('.cart-step__need').textContent = on ? 'Выбери доставку — СДЭК или Почта России' : '';
+  }
+
+  function goPay() {
+    if (!state.delivery) { needDelivery(true); return; }
+    show('pay');
   }
 
   // ----- Нажатия внутри окна -----
@@ -476,12 +607,13 @@ window.Cart = (function () {
     if (!t || !root.contains(t)) return;
     const d = t.dataset;
     if ('cartClose' in d) hide();
-    else if ('cartBack' in d) show(view === 'done' ? 'checkout' : 'list');
+    else if ('cartBack' in d) show(view === 'checkout' ? 'list' : 'checkout');
     else if ('cartDel' in d) remove(d.cartDel);
     else if ('cartUndo' in d) restore();
     else if ('cartClear' in d) clear(true);
-    else if ('cartGo' in d) show(d.cartGo);
+    else if ('cartGo' in d) { if (d.cartGo === 'pay') goPay(); else show(d.cartGo); }
     else if ('cartShip' in d) pickDelivery(d.cartShip);
+    else if ('cartPay' in d) pickPay(d.cartPay);
     else if ('cartSend' in d) send();
     else if ('cartCopy' in d) copyAgain(t);
     else if ('cartShop' in d) goShopping();
@@ -504,7 +636,7 @@ window.Cart = (function () {
     e.stopPropagation();                             // стрелки не должны листать фото товара под окном
     if (e.key === 'Escape') { hide(); return; }
     if (e.key !== 'Tab') return;
-    const f = Array.from(panel.querySelectorAll('a[href], button, input, [tabindex="0"]')).filter((x) => x.offsetParent !== null);
+    const f = Array.from(panel.querySelectorAll('a[href], button:not([disabled]), input, [tabindex="0"]')).filter((x) => x.offsetParent !== null);
     if (!f.length) { e.preventDefault(); return; }
     const first = f[0], last = f[f.length - 1], now = document.activeElement;
     if (e.shiftKey && (now === first || now === panel)) { e.preventDefault(); last.focus(); }

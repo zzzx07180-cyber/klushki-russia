@@ -28,7 +28,7 @@ window.Cart = (function () {
   const PAYMENT = [
     { id: 'card', label: 'Картой онлайн', note: 'МИР, Visa, Mastercard',         chips: ['МИР', 'VISA', 'MC'], online: true, inText: 'картой онлайн' },
     { id: 'sbp',  label: 'СБП',           note: 'По QR-коду в приложении банка', chips: ['СБП'],               online: true, inText: 'СБП' },
-    { id: 'chat', label: 'Через Telegram', note: 'Обсудим оплату с менеджером',  chips: [],                    online: false, inText: 'обсудим в чате' }
+    { id: 'chat', label: 'Через Telegram', note: 'Договоримся в чате, как тебе удобнее', chips: [],                    online: false, inText: 'обсудим в чате' }
   ];
   const WORDS = ['товар', 'товара', 'товаров'];
 
@@ -330,7 +330,7 @@ window.Cart = (function () {
           </div>
           <p class="cart-step__need" role="alert"></p>
           <label class="cart-field">
-            <span>Город <small>— если уже знаешь</small></span>
+            <span>Город</span>
             <input type="text" id="cartCity" maxlength="60" autocomplete="address-level2" placeholder="Например, Казань" value="${esc(state.city)}">
           </label>
         </section>

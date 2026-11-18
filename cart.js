@@ -33,7 +33,7 @@ window.Cart = (function () {
   // Способы оплаты. online: true — оплата на сайте (окно «Оплата»), false — договариваемся в чате.
   // chips — значки платёжных систем справа (просто надписи, без чужих логотипов).
   const PAYMENT = [
-    { id: 'card', label: 'Картой онлайн', note: 'МИР, Visa, Mastercard',         chips: ['МИР', 'VISA', 'MC'], online: true, inText: 'картой онлайн' },
+    { id: 'card', label: 'Картой онлайн', note: 'Карта МИР',                     chips: ['МИР'], online: true, inText: 'картой онлайн' },
     { id: 'sbp',  label: 'СБП',           note: 'По QR-коду в приложении банка', chips: ['СБП'],               online: true, inText: 'СБП' },
     { id: 'chat', label: 'Через Telegram', note: 'Договоримся в чате, как тебе удобнее', chips: [],                    online: false, inText: 'обсудим в чате' }
   ];

@@ -35,7 +35,7 @@ window.Cart = (function () {
   const PAYMENT = [
     { id: 'card', label: 'Картой онлайн', note: 'Карта МИР',                     chips: ['МИР'], online: true, inText: 'картой онлайн' },
     { id: 'sbp',  label: 'СБП',           note: 'По QR-коду в приложении банка', chips: ['СБП'],               online: true, inText: 'СБП' },
-    { id: 'chat', label: 'Через Telegram', note: 'Договоримся в чате, как тебе удобнее', chips: [],                    online: false, inText: 'обсудим в чате' }
+    { id: 'chat', label: 'Через Telegram', note: 'Оформить в Telegram',          chips: [],                    online: false, inText: 'обсудим в чате' }
   ];
   const WORDS = ['товар', 'товара', 'товаров'];
   const DAYS = ['день', 'дня', 'дней'];

@@ -1,15 +1,17 @@
 // ===== Подбор клюшки =====
 // Кнопка «Подобрать клюшку» в правом нижнем углу (index.html и catalog.html, атрибут data-picker-open)
-// открывает окно-помощник в виде чата. Помощник задаёт несколько вопросов, покупатель отвечает кнопками
-// (кто на льду, рост, вес, опыт, любимый загиб, хват), а в конце получает совет — жёсткость, загиб, хват,
-// длина — и подходящие клюшки из наличия (тот же каталог window.PRODUCTS, что и на сайте).
+// открывает окно-помощник в виде чата. Помощник задаёт вопросы, покупатель отвечает кнопками
+// (амплуа, возраст, рост, вес, уровень, хват), а в конце получает совет — размер клюшки, жёсткость,
+// загиб, точку прогиба, длину — и подходящие клюшки из наличия (тот же каталог window.PRODUCTS).
 // Всё считается прямо в браузере покупателя: никуда ничего не отправляется. Ответы хранятся только
 // у него (localStorage, ключ klushki-picker) — вернулся со страницы товара и видит свой подбор.
 //
+// Вопросы переделаны по просьбе владельца 2026-11-19: только хоккейные варианты ответа, без «не знаю»
+// и без «любимого загиба» (загиб определяется амплуа). Каждый вопрос объясняет, на что он влияет.
+//
 // ИИ — потом (решение владельца 2026-11-19). Когда подключим нейросеть (YandexGPT или открытые модели
 // DeepSeek / Qwen в Yandex AI Studio — через маленький облачный сервер: ключ на сайт класть нельзя),
-// под кнопками появится поле «Спросить своими словами». Правила подбора ниже (WEIGHT_FLEX, curveAdvice)
-// пригодятся ИИ как подсказка.
+// под кнопками появится поле «Спросить своими словами». Правила подбора ниже пригодятся ИИ как подсказка.
 // Оформление — в style.css, блок «ПОДБОР КЛЮШКИ».
 
 window.Picker = (function () {
@@ -20,63 +22,86 @@ window.Picker = (function () {
   const openers = document.querySelectorAll('[data-picker-open]');
 
   const isGoalie = (p) => !!(p.specs && p.specs.goalie);
-  const unique = (list) => [...new Set(list)];
   const STICKS = PRODUCTS.filter((p) => p.category === 'sticks' && p.inStock);
   if (!STICKS.length) {                              // клюшек нет (или каталог не загрузился) — подбирать не из чего
     openers.forEach((b) => { b.hidden = true; });
     return null;
   }
-  // загибы полевых клюшек, которые есть в наличии, и типы клюшек (оригинал / восстановленная)
-  const CURVES = unique(STICKS.filter((p) => !isGoalie(p)).map((p) => p.specs && p.specs.curve).filter(Boolean)).sort();
-  const TYPES = unique(STICKS.map((p) => p.type).filter(Boolean));
+  const TYPES = [...new Set(STICKS.map((p) => p.type).filter(Boolean))];   // оригинал / восстановленная
   const HANDS = { left: 'Левый', right: 'Правый' };
 
-  // ----- Правила подбора -----
-  // Жёсткость (flex) — по весу: примерно половина веса в фунтах (вес в кг × 1,1), сверено с таблицами
-  // производителей. Новичкам — на 5 мягче (клюшку легче согнуть, бросок получается), защитникам —
-  // на 5 жёстче (щелчки от синей линии).
-  const WEIGHT_FLEX = { w1: 40, w2: 55, w3: 70, w4: 82, w5: 95, w6: 102 };
-  const CURVE_NOTES = {
-    P92: 'универсальный средний загиб: и пас, и бросок, к нему легко привыкнуть',
-    P29: 'средний загиб: удобно принимать пас и бросать с обеих сторон',
-    P28: 'загиб к носку: резкий бросок с кистей и обводка, но пас неудобной стороной сложнее',
-    P90: 'загиб ближе к носку: бросок с кистей и обводка',
-    P88: 'мягкий средний загиб: точный пас, хорош для новичков'
+  // =====================================================================
+  // Правила подбора (сверено с таблицами Bauer, CCM и хоккейных магазинов, 2026-11-19)
+  // =====================================================================
+  //  • возраст и рост → РАЗМЕР клюшки: детская (Youth), юниорская (Junior), подростковая (Intermediate),
+  //    взрослая (Senior) — у них разная длина и толщина рукоятки;
+  //  • рост → ДЛИНА: в коньках клюшка достаёт примерно до подбородка, без коньков — до носа;
+  //  • вес → ЖЁСТКОСТЬ (флекс): тяжелее и сильнее игрок — жёстче клюшка. У взрослых ориентир — около
+  //    половины веса в фунтах (вес в кг × 1,1); берём чуть мягче, как в таблицах производителей;
+  //  • амплуа → ЗАГИБ, ДЛИНА, ПРОГИБ: нападающим — загиб к носку, клюшка покороче, низкий прогиб
+  //    (быстрый бросок с кистей, обводка); защитникам — средний загиб, подлиннее, средний прогиб
+  //    (щелчок, пас на дальнюю дистанцию, охват) и на 5 жёстче;
+  //  • уровень → новичку на 5 мягче: такую клюшку легче согнуть, бросок получается быстрее.
+
+  const AGES = [['a1', 'До 8 лет'], ['a2', '8–12 лет'], ['a3', '13–16 лет'], ['a4', '17 лет и старше']];
+  // Рост — варианты зависят от возраста: [код, надпись, размер клюшки]
+  const HEIGHTS = {
+    a1: [['h1', 'До 120 см', 'yth'], ['h2', '120–135 см', 'yth'], ['h3', 'Выше 135 см', 'jr']],
+    a2: [['h1', 'До 135 см', 'jr'], ['h2', '135–150 см', 'jr'], ['h3', '150–165 см', 'int'], ['h4', 'Выше 165 см', 'int']],
+    a3: [['h1', 'До 150 см', 'jr'], ['h2', '150–165 см', 'int'], ['h3', '165–180 см', 'sr'], ['h4', 'Выше 180 см', 'sr']],
+    a4: [['h1', 'До 165 см', 'int'], ['h2', '165–175 см', 'sr'], ['h3', '175–185 см', 'sr'], ['h4', '185–195 см', 'sr'], ['h5', 'Выше 195 см', 'sr']]
   };
-  // Загиб, если любимого нет: новичкам и защитникам — средний (пас и щелчок), опытным нападающим — к носку
+  // Вес — тоже по возрасту: [код, надпись, жёсткость]
+  const WEIGHTS = {
+    a1: [['w1', 'До 25 кг', 30], ['w2', '25–35 кг', 35], ['w3', 'Больше 35 кг', 40]],
+    a2: [['w1', 'До 35 кг', 40], ['w2', '35–45 кг', 45], ['w3', '45–55 кг', 50], ['w4', 'Больше 55 кг', 55]],
+    a3: [['w1', 'До 45 кг', 50], ['w2', '45–55 кг', 55], ['w3', '55–65 кг', 65], ['w4', '65–75 кг', 70], ['w5', 'Больше 75 кг', 75]],
+    a4: [['w1', 'До 60 кг', 65], ['w2', '60–70 кг', 75], ['w3', '70–80 кг', 80], ['w4', '80–90 кг', 85],
+      ['w5', '90–100 кг', 95], ['w6', '100–110 кг', 100], ['w7', 'Больше 110 кг', 110]]
+  };
+  const SIZES = { yth: ['Детская', 'Youth'], jr: ['Юниорская', 'Junior'], int: ['Подростковая', 'Intermediate'], sr: ['Взрослая', 'Senior'] };
+
+  // Загибы. P92 у Bauer и P29 у CCM — один и тот же загиб, поэтому идут парой
+  const CURVES = {
+    toe: { codes: ['P28'], name: 'P28', note: 'P28 — к носку: быстрый бросок с кистей, обводка' },
+    mid: { codes: ['P92', 'P29'], name: 'P92 / P29', note: 'P92 / P29 — средний открытый, и пас, и бросок (P92 у Bauer = P29 у CCM)' },
+    midClosed: { codes: ['P88'], name: 'P88', note: 'P88 — средний, чуть закрытее: точный пас и плотный щелчок' }
+  };
+  // Нападающим — к носку (новичку сначала средний: с ним проще пас и бросок неудобной стороной),
+  // защитникам — средний: пас на дальнюю дистанцию и щелчок от синей линии
   function curveAdvice(a) {
-    if (a.level === 'new' || a.role === 'defense' || a.role === 'any') return ['P92', 'P29'];
-    return a.level === 'pro' ? ['P28', 'P92'] : ['P92', 'P28'];
+    if (a.role === 'defense') return ['mid', 'midClosed'];
+    return a.level === 'new' ? ['mid', 'toe'] : ['toe', 'mid'];
   }
   const round5 = (n) => Math.round(n / 5) * 5;
 
-  // ----- Вопросы -----
-  // when — задавать ли вопрос (зависит от прошлых ответов); options — [код, надпись на кнопке]
+  // =====================================================================
+  // Вопросы
+  // =====================================================================
+  // when — задавать ли вопрос; options — [код, надпись на кнопке, …] или функция от прошлых ответов
   const field = (a) => a.role !== 'goalie';
   const QUESTIONS = [
-    { id: 'role',
-      text: () => 'Привет! Помогу подобрать клюшку из того, что есть в наличии. Пара вопросов — отвечай кнопками, это полминуты.\n\nКто ты на льду?',
-      options: [['forward', 'Нападающий'], ['defense', 'Защитник'], ['goalie', 'Вратарь'], ['any', 'Пока не знаю']] },
-    { id: 'height', when: field, text: () => 'Какой у тебя рост?',
-      options: [['h1', 'До 155 см'], ['h2', '155–170 см'], ['h3', '170–185 см'], ['h4', 'Выше 185 см']] },
-    { id: 'weight', when: field, text: () => 'А вес? От него зависит, какая жёсткость тебе нужна.',
-      options: [['w1', 'До 45 кг'], ['w2', '45–60 кг'], ['w3', '60–75 кг'], ['w4', '75–90 кг'], ['w5', '90–105 кг'], ['w6', 'Больше 105 кг']] },
-    { id: 'level', when: field, text: () => 'Как давно играешь?',
-      options: [['new', 'Только начинаю'], ['fan', 'Играю для себя'], ['pro', 'Давно и серьёзно']] },
-    { id: 'curve', when: (a) => field(a) && a.level !== 'new' && CURVES.length > 1,
-      text: () => 'Есть любимый загиб? Если привык к своему — лучше его и брать.',
-      options: CURVES.map((c) => [c, c]).concat([['any', 'Не знаю — посоветуй']]) },
-    { id: 'hand',
-      text: (a) => a.role === 'goalie' ? 'Какой хват у твоей вратарской клюшки?' : 'Какой хват?',
-      hint: (a) => a.role === 'goalie'
-        ? 'Не уверен — нажми «Не знаю», покажу все вратарские.'
-        : 'Левый — крюк слева от тебя, левая рука ниже по клюшке. Не уверен — возьми швабру, как клюшку: какая рука сама оказалась ниже, такой и хват.',
-      options: [['left', 'Левый'], ['right', 'Правый'], ['any', 'Не знаю']] },
+    { id: 'role', text: () => 'Привет! Подберу клюшку из наличия под твои параметры.\n\nТвоё амплуа?',
+      options: [['forward', 'Нападающий'], ['defense', 'Защитник'], ['goalie', 'Вратарь']] },
+    { id: 'age',
+      text: () => 'Сколько тебе лет? От возраста зависит размер клюшки — детская, юниорская, подростковая или взрослая: у них разная длина и толщина рукоятки.',
+      options: AGES },
+    { id: 'height',
+      text: (a) => a.role === 'goalie' ? 'Рост? От него зависит размер вратарской клюшки.' : 'Рост? От него зависит длина клюшки.',
+      options: (a) => HEIGHTS[a.age] || [] },
+    { id: 'weight', when: field,
+      text: () => 'Вес? От него зависит жёсткость (флекс): слишком мягкая клюшка гнётся без отдачи, а слишком жёсткую не согнёшь — и бросок теряет силу.',
+      options: (a) => WEIGHTS[a.age] || [] },
+    { id: 'level', when: field, text: () => 'Уровень игры?',
+      options: [['new', 'Новичок'], ['fan', 'Любитель'], ['pro', 'Профессионал']] },
+    { id: 'hand', text: () => 'Хват?', options: [['left', 'Левый'], ['right', 'Правый']] },
     { id: 'type', when: () => TYPES.length > 1, text: () => 'Какие клюшки смотрим?',
       options: [['original', 'Оригинальные'], ['restored', 'Восстановленные — дешевле'], ['any', 'Любые']] }
   ];
   const Q = Object.fromEntries(QUESTIONS.map((q) => [q.id, q]));
-  const label = (id, value) => ((Q[id].options.find((o) => o[0] === value) || [])[1] || '');
+  const optionsOf = (q) => typeof q.options === 'function' ? q.options(answers) : q.options;
+  const option = (id, value) => optionsOf(Q[id]).find((o) => o[0] === value) || [];
+  const label = (id, value) => option(id, value)[1] || '';
 
   // ----- Ответы -----
   let answers = {};
@@ -88,10 +113,10 @@ window.Picker = (function () {
     try {
       const d = JSON.parse(localStorage.getItem(KEY) || '{}') || {};
       answers = {};
-      // берём ответы по порядку, пока они подходят к вопросам (каталог мог измениться — например, пропал загиб)
+      // берём сохранённые ответы по порядку, пока они подходят к вопросам (вопросы или каталог могли измениться)
       for (const q of QUESTIONS) {
         if (q.when && !q.when(answers)) continue;
-        if (!q.options.some((o) => o[0] === d[q.id])) break;
+        if (!optionsOf(q).some((o) => o[0] === d[q.id])) break;
         answers[q.id] = d[q.id];
       }
     } catch (e) { answers = {}; }
@@ -103,22 +128,26 @@ window.Picker = (function () {
   // ----- Совет и подходящие клюшки -----
   function advise(a) {
     const hand = HANDS[a.hand] || '';
-    if (a.role === 'goalie') return { goalie: true, hand };
-    const flex = WEIGHT_FLEX[a.weight] + (a.level === 'new' ? -5 : 0) + (a.role === 'defense' ? 5 : 0);
-    const curves = a.curve && a.curve !== 'any' ? [a.curve] : curveAdvice(a);
-    return { flex, from: round5(flex - 5), to: round5(flex + 5), curves, hand, small: a.height === 'h1' || a.weight === 'w1' };
+    const size = option('height', a.height)[2] || 'sr';
+    if (a.role === 'goalie') return { goalie: true, size, hand };
+    const flex = Math.max(20, (option('weight', a.weight)[2] || 75) + (a.level === 'new' ? -5 : 0) + (a.role === 'defense' ? 5 : 0));
+    const groups = curveAdvice(a);
+    return {
+      size, hand, flex, from: round5(flex - 5), to: round5(flex + 5), groups,
+      primary: CURVES[groups[0]].codes, secondary: CURVES[groups[1]].codes
+    };
   }
 
   const priceOf = (p) => hasPrice(p.price) ? p.price : Infinity;
   const flexOf = (p) => parseInt(p.specs && p.specs.flex, 10) || 0;
-
   const inRange = (p, rec) => { const f = flexOf(p); return f >= rec.from && f <= rec.to; };
+  const curveOk = (p, rec) => { const c = p.specs && p.specs.curve; return rec.primary.includes(c) || rec.secondary.includes(c); };
   const plural = (n, w) => w[n % 10 === 1 && n % 100 !== 11 ? 0
     : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 1 : 2];
 
   // Клюшки из наличия: нужный хват и тип; полевые — с жёсткостью не дальше 12 от совета.
-  // Сверху — те, у кого жёсткость в советованном диапазоне, среди них — ближе к середине и с советованным
-  // загибом; при равенстве — дешевле
+  // Сверху — с жёсткостью в советованном диапазоне, среди них — с загибом под амплуа и ближе к середине
+  // по жёсткости; при равенстве — дешевле
   function matches(a, rec) {
     let list = STICKS.filter((p) => isGoalie(p) === !!rec.goalie);
     if (rec.hand) list = list.filter((p) => p.specs && p.specs.hand === rec.hand);
@@ -128,25 +157,29 @@ window.Picker = (function () {
       const f = flexOf(p);
       const d = f ? Math.abs(f - rec.flex) : 8;       // жёсткость не указана — не выкидываем, но ставим ниже
       if (d > 12) return null;
-      const c = rec.curves.indexOf(p.specs && p.specs.curve);
-      return { p, score: (inRange(p, rec) ? 20 : 0) - d + (c === 0 ? 6 : c > 0 ? 4 : 0) };
+      const c = p.specs && p.specs.curve;
+      return { p, score: (inRange(p, rec) ? 20 : 0) - d + (rec.primary.includes(c) ? 6 : rec.secondary.includes(c) ? 4 : 0) };
     }).filter(Boolean)
       .sort((x, y) => y.score - x.score || priceOf(x.p) - priceOf(y.p))
       .map((x) => x.p);
   }
 
+  const sizeText = (size) => SIZES[size][0].toLowerCase() + ' (' + SIZES[size][1] + ')';
+
   // Текст для Telegram: ответы и совет одним сообщением — продавцу сразу всё понятно
   function tgText(a, rec) {
     const who = { forward: 'нападающий', defense: 'защитник', goalie: 'вратарь' }[a.role];
     const parts = [who,
+      a.age && label('age', a.age).toLowerCase(),
       a.height && 'рост ' + label('height', a.height).toLowerCase(),
       a.weight && 'вес ' + label('weight', a.weight).toLowerCase(),
       a.level && label('level', a.level).toLowerCase(),
-      a.curve && a.curve !== 'any' && 'люблю загиб ' + a.curve,
       rec.hand && 'хват ' + rec.hand.toLowerCase()].filter(Boolean);
-    return 'Здравствуйте! Подбираю клюшку' + (parts.length ? ': ' + parts.join(', ') : '') + '.' +
-      (rec.goalie ? '' : ` Сайт советует жёсткость ${rec.from}–${rec.to} и загиб ${rec.curves.join(' или ')}.`) +
-      ' Что посоветуете?';
+    const advice = rec.goalie
+      ? `вратарская клюшка, размер — ${sizeText(rec.size)}`
+      : `${sizeText(rec.size)}, жёсткость ${rec.from}–${rec.to}, загиб ${rec.groups.map((g) => CURVES[g].name).join(' или ')}`;
+    return 'Здравствуйте! Подбираю клюшку' + (parts.length ? ': ' + parts.join(', ') : '') + '. ' +
+      'Сайт советует: ' + advice + '. Что посоветуете?';
   }
 
   // ----- Значки -----
@@ -189,25 +222,38 @@ window.Picker = (function () {
   const bot = (html, cls) => `<div class="picker-msg picker-msg--bot${cls ? ' ' + cls : ''}">${html}</div>`;
   const me = (text) => `<div class="picker-msg picker-msg--me">${esc(text)}</div>`;
 
-  // Совет: жёсткость, загиб, хват, длина
+  // Совет: размер, жёсткость, загиб, прогиб, длина, хват
   function recHTML(a, rec) {
     const row = (dt, b, small) => `<div><dt>${dt}</dt><dd><b>${b}</b>${small ? `<small>${small}</small>` : ''}</dd></div>`;
-    const handRow = row('Хват', rec.hand ? esc(rec.hand) : 'Как держишь швабру',
-      rec.hand ? '' : 'какая рука ниже — такой и хват');
+    const sizeRow = row('Размер', `${SIZES[rec.size][0]} (${SIZES[rec.size][1]})`, 'по возрасту и росту: длина и толщина рукоятки');
+    const handRow = row('Хват', esc(rec.hand));
     if (rec.goalie) {
       return `<div class="picker-rec"><p class="picker-rec__title">Что смотреть</p><dl>
+        ${sizeRow}
+        ${row('Длина пера', rec.size === 'sr' ? '25–27″' : 'По стойке',
+          'в стойке клюшка лежит на льду, а блин — на одной линии со щитком')}
         ${handRow}
-        ${row('Длина пера', '25″, 26″…', 'подбирают по росту и стойке — подскажем в чате')}
       </dl></div>`;
     }
+    const forward = a.role !== 'defense';
     const why = ['по весу ' + label('weight', a.weight).toLowerCase(),
-      a.level === 'new' && 'новичку — чуть мягче', a.role === 'defense' && 'защитнику — чуть жёстче для щелчка'].filter(Boolean).join('; ');
-    const curveNote = rec.curves.map((c) => CURVE_NOTES[c] ? `${c} — ${CURVE_NOTES[c]}` : '').filter(Boolean).join('. ');
+      a.level === 'new' && 'новичку — мягче, её легче согнуть',
+      !forward && 'защитнику — жёстче для щелчка'].filter(Boolean).join('; ');
+    const curves = rec.groups.map((g) => CURVES[g]);
     return `<div class="picker-rec"><p class="picker-rec__title">Тебе подойдёт</p><dl>
+      ${sizeRow}
       ${row('Жёсткость', `${rec.from}–${rec.to}`, why)}
-      ${row('Загиб', rec.curves.join(' или '), (a.curve && a.curve !== 'any' ? 'тот, к которому привык. ' : '') + curveNote)}
+      ${row('Загиб', curves.map((c) => c.name).join(' или '),
+        (!forward ? 'защитникам — средний: пас на дальнюю и щелчок. '
+          : a.level === 'new' ? 'нападающим — чаще к носку, но новичку проще начать со среднего. '
+          : 'нападающим — чаще к носку. ') + curves.map((c) => c.note).join('. '))}
+      ${row('Прогиб', forward ? 'Низкий' : 'Средний', forward
+        ? 'клюшка гнётся ближе к крюку — быстрый бросок с кистей'
+        : 'гнётся посередине — мощный щелчок от синей линии')}
+      ${row('Длина', forward ? 'До подбородка' : 'Подбородок — нос', (forward
+        ? 'в коньках. Нападающим — покороче: удобнее обводка и бросок с кистей'
+        : 'в коньках. Защитникам — подлиннее: больше охват и сильнее щелчок') + '. Подрезка делает клюшку жёстче')}
       ${handRow}
-      ${row('Длина', 'До подбородка в коньках', 'без коньков — до кончика носа. Подрежешь клюшку — она станет жёстче')}
     </dl></div>`;
   }
 
@@ -217,13 +263,12 @@ window.Picker = (function () {
     const s = p.specs || {};
     const first = photos(p)[0];
     const pic = first ? `<img src="${esc(first)}" alt="" loading="lazy">` : `<span aria-hidden="true">${category(p.category).icon}</span>`;
-    const f = flexOf(p);
     const tag = (text, ok) => `<i${ok ? ' class="is-match"' : ''}>${esc(text)}</i>`;
     const tags = [
-      s.flex && tag('Жёсткость ' + s.flex, !rec.goalie && f >= rec.from && f <= rec.to),
-      s.curve && tag(s.curve, !rec.goalie && rec.curves.includes(s.curve)),
+      s.flex && tag('Жёсткость ' + s.flex, !rec.goalie && inRange(p, rec)),
+      s.curve && tag(s.curve, !rec.goalie && curveOk(p, rec)),
       s.paddle && tag('Перо ' + s.paddle, false),
-      s.hand && tag('Хват ' + s.hand.toLowerCase(), !!rec.hand)
+      s.hand && tag('Хват ' + s.hand.toLowerCase(), true)
     ].filter(Boolean).join('');
     return `
       <li class="picker-card">
@@ -245,38 +290,29 @@ window.Picker = (function () {
   // Весь разговор: заданные вопросы и ответы, потом — следующий вопрос или итог
   function messages() {
     const out = [];
-    answeredList().forEach((q) => {
-      out.push(bot(esc(q.text(answers)).replace(/\n/g, '<br>')), me(label(q.id, answers[q.id])));
-    });
+    const ask = (q) => bot(esc(q.text(answers)).replace(/\n/g, '<br>'));
+    answeredList().forEach((q) => out.push(ask(q), me(label(q.id, answers[q.id]))));
     const q = nextQuestion();
-    if (q) {
-      const hint = q.hint ? `<small>${esc(q.hint(answers))}</small>` : '';
-      out.push(bot(esc(q.text(answers)).replace(/\n/g, '<br>') + hint));
-      return out;
-    }
+    if (q) { out.push(ask(q)); return out; }
+
     const rec = advise(answers);
-    const list = matches(answers, rec);
     out.push(bot('Готово! Вот что тебе подойдёт.', 'picker-msg--done'), recHTML(answers, rec));
-    if (rec.small) {
-      out.push(bot('Похоже, тебе нужна юниорская или подростковая клюшка: взрослые из наличия будут длинными и жёсткими. ' +
-        'Напиши нам — подберём под заказ.'));
+    if (rec.size !== 'sr') {
+      out.push(bot(`Тебе нужна ${sizeText(rec.size)} клюшка. В наличии сейчас в основном взрослые — ` +
+        (rec.size === 'yth' ? 'напиши нам, подберём детскую под заказ.' : 'если ниже не найдётся подходящей, напиши нам: подберём под заказ.')));
     }
+    const list = rec.size === 'yth' ? [] : matches(answers, rec);   // детских клюшек в наличии нет — взрослые не предлагаем
     if (list.length) {
       const handURL = 'catalog.html?cat=sticks' + (rec.hand ? '&hand=' + encodeURIComponent(rec.hand) : '');
-      // «подходят» — только те, у кого жёсткость в советованном диапазоне, а если назван любимый загиб —
-      // ещё и с ним (у вратарских — все с нужным хватом)
-      const fav = answers.curve && answers.curve !== 'any' ? answers.curve : '';
-      const exact = rec.goalie ? list.length
-        : list.filter((p) => inRange(p, rec) && (!fav || (p.specs && p.specs.curve) === fav)).length;
+      // «подходят» — только с жёсткостью в советованном диапазоне (у вратарских — все с нужным хватом)
+      const exact = rec.goalie ? list.length : list.filter((p) => inRange(p, rec)).length;
       const what = rec.goalie ? ['вратарская клюшка', 'вратарские клюшки', 'вратарских клюшек'] : ['клюшка', 'клюшки', 'клюшек'];
       out.push(bot(exact === 1 ? `Из наличия подходит одна ${what[0]}:`
         : exact ? `Из наличия ${plural(exact, ['подходит', 'подходят', 'подходят'])} ${exact} ${plural(exact, what)}${exact > SHOW ? ' — вот самые близкие' : ''}:`
         : 'Точно под твои параметры в наличии сейчас нет, но вот близкие по жёсткости:'));
       out.push(`<ul class="picker-cards">${list.slice(0, SHOW).map((p) => cardHTML(p, rec)).join('')}</ul>`);
-      if (list.length > SHOW || rec.hand) {
-        out.push(`<a class="picker-more" href="${handURL}">${rec.hand ? 'Все клюшки с ' + (rec.hand === 'Левый' ? 'левым' : 'правым') + ' хватом' : 'Все клюшки'} в каталоге →</a>`);
-      }
-    } else {
+      out.push(`<a class="picker-more" href="${handURL}">Все клюшки с ${rec.hand === 'Левый' ? 'левым' : 'правым'} хватом в каталоге →</a>`);
+    } else if (rec.size !== 'yth') {
       out.push(bot('Сейчас в наличии нет клюшки под эти параметры. Напиши нам — подберём под заказ или посоветуем, что взять из того, что есть.'));
     }
     return out;
@@ -286,8 +322,9 @@ window.Picker = (function () {
   function footHTML() {
     const q = nextQuestion();
     if (q) {
-      return `<div class="picker-opts${q.options.length > 4 ? ' picker-opts--grid' : ''}">
-          ${q.options.map(([id, text]) => `<button type="button" class="picker-opt" data-picker-answer="${esc(id)}">${esc(text)}</button>`).join('')}
+      const opts = optionsOf(q);
+      return `<div class="picker-opts${opts.length > 4 ? ' picker-opts--grid' : ''}">
+          ${opts.map(([id, text]) => `<button type="button" class="picker-opt" data-picker-answer="${esc(id)}">${esc(text)}</button>`).join('')}
         </div>
         ${answeredList().length ? '<button type="button" class="picker__back" data-picker-back>← Изменить прошлый ответ</button>' : ''}`;
     }
@@ -322,7 +359,7 @@ window.Picker = (function () {
 
   function answer(value) {
     const q = nextQuestion();
-    if (!q || busy || !q.options.some((o) => o[0] === value)) return;
+    if (!q || busy || !optionsOf(q).some((o) => o[0] === value)) return;
     answers[q.id] = value;
     save();
     if (still()) { render(); return; }

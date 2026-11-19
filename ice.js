@@ -62,11 +62,8 @@
     canvas.width = w * dpr;
     canvas.height = h * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // Холст выше экрана на --ice-below (запас под нижней панелью Telegram, см. style.css).
-    // Общий тон и затемнение краёв строим по видимой части (view) — на экране лёд как раньше,
-    // а запас внизу продолжает его, чуть темнее, как края экрана.
-    const below = parseFloat(getComputedStyle(canvas).getPropertyValue('--ice-below')) || 0;
-    const view = Math.max(1, h - below);
+    // Холст выше экрана на --ice-below (style.css) — тон и затемнение краёв строим по видимой части
+    const view = Math.max(1, h - (parseFloat(getComputedStyle(canvas).getPropertyValue('--ice-below')) || 0));
 
     const rnd = makeRandom(20261111);
     const R = (a, b) => a + rnd() * (b - a);

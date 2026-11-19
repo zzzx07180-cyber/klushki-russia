@@ -16,29 +16,22 @@ nav.querySelectorAll('a').forEach((link) => {
   });
 });
 
-// ===== Конец страницы: закрываем щель под подвалом =====
-// Высота страницы бывает дробной, и в самом низу под подвалом остаётся щель в полточки —
-// на iPhone в ней видна полоска льда. Когда низ подвала стоит у нижнего края экрана,
-// включаем чёрную планку у низа экрана (.page-end-cap, оформление — в style.css).
+// ===== Чёрная планка в конце страницы (.page-end-cap в style.css) =====
+// Включаем, когда низ подвала стоит у нижнего края экрана.
 {
-  // Событие прокрутки браузер и так присылает не чаще раза за кадр — проверка дешёвая,
-  // а планку трогаем, только когда её состояние меняется.
   const footer = document.querySelector('.footer');
-  const cap = document.createElement('div');
-  cap.className = 'page-end-cap';
-  cap.setAttribute('aria-hidden', 'true');
-  let shown = false;
-  const check = () => {
-    const gap = window.innerHeight - footer.getBoundingClientRect().bottom;   // щель под подвалом
-    const end = gap > -2 && gap < 4;
-    if (end !== shown) { shown = end; cap.classList.toggle('is-on', end); }
-  };
   if (footer) {
-    document.body.appendChild(cap);
-    window.addEventListener('scroll', check, { passive: true });
-    window.addEventListener('resize', check);
-    // страница стала длиннее или короче (каталог отфильтровали, догрузились картинки)
-    if ('ResizeObserver' in window) new ResizeObserver(check).observe(document.body);
+    const cap = document.body.appendChild(document.createElement('div'));
+    cap.className = 'page-end-cap';
+    let on = false;
+    const check = () => {
+      const gap = innerHeight - footer.getBoundingClientRect().bottom;
+      const end = gap > -2 && gap < 4;
+      if (end !== on) cap.classList.toggle('is-on', on = end);
+    };
+    addEventListener('scroll', check, { passive: true });
+    addEventListener('resize', check);
+    if (window.ResizeObserver) new ResizeObserver(check).observe(document.body);  // каталог отфильтровали и т. п.
     check();
   }
 }

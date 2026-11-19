@@ -16,6 +16,19 @@ nav.querySelectorAll('a').forEach((link) => {
   });
 });
 
+// ===== Браузер внутри Telegram (iPhone): чёрное под его нижней панелью =====
+// Когда страница докручена до конца, под нижней панелью Telegram (назад / вперёд / поделиться)
+// сайта уже нет, и там виден фон самого Telegram — в светлой теме белый (владелец 2026-11-19).
+// Telegram не обрезает страницу по краю окна, поэтому кладём чёрную полосу сразу под «экран»
+// сайта — в конце страницы она продолжает подвал. Узнаём Telegram по TelegramWebviewProxy:
+// его встроенный браузер сам добавляет это имя на каждую страницу. В Safari полосы нет.
+if (window.TelegramWebviewProxy) {
+  const underBar = document.createElement('div');
+  underBar.className = 'tg-under-bar';
+  underBar.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(underBar);
+}
+
 // ===== Шайба въезжает по льду (только на главной) =====
 // При открытии сайта и при каждом нажатии на шайбу запускаем анимацию заново.
 const puckZone = document.querySelector('.puck-zone');

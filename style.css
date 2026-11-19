@@ -500,6 +500,22 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   text-transform: uppercase;
   letter-spacing: 1.5px;
 }
+/* Чёрная полоса под «экраном» сайта — только во встроенном браузере Telegram (её создаёт script.js).
+   В конце страницы под нижней панелью Telegram был виден его белый фон; полоса продолжает подвал.
+   Она начинается на 2px ВЫШЕ края экрана, и эти 2px прозрачные: телефон рисует «приклеенный»
+   элемент, только если тот хоть немного заходит на экран. Лежит под содержимым страницы
+   (z-index: -1, как лёд). */
+.tg-under-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: calc(100% - 2px);
+  height: 202px;
+  background: linear-gradient(transparent 2px, var(--black) 2px);
+  z-index: -1;
+  pointer-events: none;
+}
+
 .footer__inner { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 
 /* ===== Плавающая кнопка связи ===== */

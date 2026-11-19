@@ -19,15 +19,22 @@ nav.querySelectorAll('a').forEach((link) => {
 // ===== Конец страницы: закрываем щель под подвалом =====
 // Высота страницы бывает дробной, и в самом низу под подвалом остаётся щель в полточки —
 // на iPhone в ней видна полоска льда. Когда низ подвала стоит у нижнего края экрана,
-// ставим на <html> класс is-page-end — style.css показывает чёрную планку (body::after).
+// включаем чёрную планку у низа экрана (.page-end-cap, оформление — в style.css).
 {
-  // Событие прокрутки браузер и так присылает не чаще раза за кадр — проверка дешёвая.
+  // Событие прокрутки браузер и так присылает не чаще раза за кадр — проверка дешёвая,
+  // а планку трогаем, только когда её состояние меняется.
   const footer = document.querySelector('.footer');
+  const cap = document.createElement('div');
+  cap.className = 'page-end-cap';
+  cap.setAttribute('aria-hidden', 'true');
+  let shown = false;
   const check = () => {
     const gap = window.innerHeight - footer.getBoundingClientRect().bottom;   // щель под подвалом
-    document.documentElement.classList.toggle('is-page-end', gap > -2 && gap < 4);
+    const end = gap > -2 && gap < 4;
+    if (end !== shown) { shown = end; cap.classList.toggle('is-on', end); }
   };
   if (footer) {
+    document.body.appendChild(cap);
     window.addEventListener('scroll', check, { passive: true });
     window.addEventListener('resize', check);
     // страница стала длиннее или короче (каталог отфильтровали, догрузились картинки)

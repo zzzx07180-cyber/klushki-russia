@@ -50,8 +50,8 @@ window.Cart = (function () {
   const PAYMENT = [
     { id: 'card', label: 'Картой онлайн', note: 'Карта МИР',                     chips: ['МИР'], online: true, inText: 'картой онлайн' },
     { id: 'sbp',  label: 'СБП',           note: 'По QR-коду в приложении банка', chips: ['СБП'], online: true, inText: 'СБП' },
-    { id: 'chat', label: 'Telegram',  chat: 'tg', where: 'в Telegram', note: S.TELEGRAM_NAME || 'Оформить в Telegram', inText: 'обсудим в чате' },
-    { id: 'vk',   label: 'ВКонтакте', chat: 'vk', where: 'во ВКонтакте', note: S.VK ? 'Отправишь заказ в сообщения' : 'Скоро',
+    { id: 'chat', label: 'Telegram',  chat: 'tg', note: S.TELEGRAM_NAME || 'Оформить в Telegram', inText: 'обсудим в чате' },
+    { id: 'vk',   label: 'ВКонтакте', chat: 'vk', note: S.VK ? 'Отправишь заказ в сообщения' : 'Скоро',
       inText: 'обсудим в чате', off: !S.VK }
   ].filter((m) => ONLINE_PAY || !m.online);
   const FIRST_PAY = PAYMENT.find((m) => !m.off).id;   // что выбрано, пока покупатель ничего не менял
@@ -565,7 +565,7 @@ window.Cart = (function () {
     { text: 'Платишь, только когда всё согласовали' }
   ];
 
-  // Подпись под кнопкой «Отправить заказ»: что будет дальше
+  // Подпись под кнопкой «Заказать через …»: что будет дальше
   function sendNote(pm) {
     return pm.chat === 'tg' && S.telegramLink(message()) !== S.TELEGRAM
       ? 'Текст заказа сам появится в чате — останется нажать «Отправить».'
@@ -577,7 +577,7 @@ window.Cart = (function () {
     const pm = payMethod(t);
     const toPay = t.sum + (shipCost() || 0);
     // Порядок шагов. С оплатой на сайте: [доставка] → оплата → состав заказа (итог прямо над «Оплатить»).
-    // Витрина: [доставка] → состав заказа → оформить заказ (выбор чата прямо над кнопкой «Отправить заказ»).
+    // Витрина: [доставка] → состав заказа → оформить заказ (выбор чата прямо над кнопкой «Заказать через …»).
     const steps = (SHIP_STEP ? ['ship'] : []).concat(ONLINE_PAY ? ['pay', 'sum'] : ['sum', 'pay']);
     const html = {
       ship: (no) => `<section class="cart-step" data-step="ship">${shipHTML(no)}</section>`,
@@ -597,7 +597,7 @@ window.Cart = (function () {
       foot: pm.online
         ? `<button type="button" class="btn cart__cta" data-cart-go="pay">${ICON_LOCK} Оплатить ${price(toPay)}</button>
            ${sendLink('Есть вопрос? Написать в Telegram', 'cart__alt')}`
-        : `${sendLink((pm.chat === 'vk' ? ICON_VK : ICON_TG) + ' Отправить заказ ' + pm.where, 'btn cart__cta', pm.chat)}
+        : `${sendLink((pm.chat === 'vk' ? ICON_VK : ICON_TG) + ' Заказать через ' + pm.label, 'btn cart__cta', pm.chat)}
            <p class="cart__note cart__note--center">${sendNote(pm)}</p>`
     };
   }
@@ -770,7 +770,7 @@ window.Cart = (function () {
           </div>
         </div>`,
       foot: `
-        ${sendLink(ICON_TG + ' Отправить заказ в Telegram', 'btn cart__cta')}
+        ${sendLink(ICON_TG + ' Заказать через Telegram', 'btn cart__cta')}
         <button type="button" class="cart__alt" data-cart-back>Выбрать другой способ оплаты</button>`
     };
   }
@@ -1127,7 +1127,7 @@ window.Cart = (function () {
   }
 
   // Способ оплаты: подсвечиваем выбранный и меняем главную кнопку внизу
-  // («Оплатить», «Отправить заказ в Telegram» или «… во ВКонтакте»)
+  // («Оплатить», «Заказать через Telegram» или «Заказать через ВКонтакте»)
   function pickPay(id) {
     state.pay = id;
     save();

@@ -3,7 +3,7 @@
 #   py tools/make_icons.py
 #
 # Что делает (всё кладёт в images/):
-#   favicon.png           — значок во вкладке браузера (64×64): синий круг с белой «шайбой в полёте»;
+#   favicon.png           — значок во вкладке браузера (64×64): скрещённые клюшки и шайба на чёрном;
 #   apple-touch-icon.png  — значок на экране «Домой» у iPhone (180×180, тёмный фон — iPhone не любит прозрачный);
 #   og-image.jpg          — картинка превью, когда ссылку на сайт присылают в Telegram / ВКонтакте
 #                           (1200×630): слева логотип, справа шайба, фон — тёмный лёд.
@@ -119,29 +119,41 @@ def og_image():
 
 
 def favicon(side=64):
-    """Значок во вкладке: синий круг и белая «шайба в полёте» — тот же рисунок, что на кнопке
-    «Подобрать клюшку» (ICON_PUCK в picker.js, координаты — из его viewBox 0…24).
+    """Значок во вкладке: две скрещённые голубые клюшки и синяя шайба на чёрной скруглённой плашке
+    (владелец выбрал 2026-11-19 из пяти вариантов — «вариант 3»; прежний значок, «шайба в полёте»,
+    совпадал с кнопкой подбора). Координаты — в сетке 0…256, рисуем крупно и уменьшаем: края гладкие.
     Настоящая шайба для вкладки не годится: в 16–32 точках она превращается в тёмное пятно."""
-    S = 512                                   # рисуем крупно и уменьшаем — края получаются гладкими
+    G = 256
+    S = 1024
+    k = S / G
     img = Image.new('RGBA', (S, S), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.ellipse((0, 0, S - 1, S - 1), fill=ACCENT + (255,))
-    k = S * 0.66 / 24                         # рисунок занимает ~2/3 круга
-    o = (S - 24 * k) / 2
-    P = lambda x, y: (o + x * k, o + y * k)   # точка из координат значка (0…24) в пиксели
-    white = (255, 255, 255, 255)
-    cx, rx, ry, top, bottom = 15.25, 6.75, 3.5, 10, 13.9
-    # корпус шайбы: верхний овал, бок, нижний овал
-    d.ellipse((*P(cx - rx, bottom - ry), *P(cx + rx, bottom + ry)), fill=white)
-    d.rectangle((*P(cx - rx, top), *P(cx + rx, bottom)), fill=white)
-    d.ellipse((*P(cx - rx, top - ry), *P(cx + rx, top + ry)), fill=white)
-    # синяя линия края верхней грани
-    d.arc((*P(8.7, 10.45 - 2.85), *P(21.8, 10.45 + 2.85)), 0, 180, fill=ACCENT + (255,), width=round(1.3 * k))
-    # линии скорости
-    for y, x0 in ((8.8, 3.2), (12.1, 1.6), (15.4, 3.2)):
-        d.line((*P(x0, y), *P(6.4, y)), fill=white, width=round(2 * k))
-        for x in (x0, 6.4):                   # скруглённые концы
-            d.ellipse((*P(x - 1, y - 1), *P(x + 1, y + 1)), fill=white)
+    d.rounded_rectangle((0, 0, S - 1, S - 1), radius=round(56 * k), fill=BLACK + (255,))
+
+    ice = (127, 212, 255, 255)                # #7fd4ff — ледяной голубой
+    width = round(24 * k)
+
+    def stick(flip):
+        # рукоятка — прямая из верхнего угла вниз, крюк — плавный загиб наружу (кривая Безье)
+        x = (lambda v: G - v) if flip else (lambda v: v)
+        p0, p1, p2 = (172, 182), (184, 198), (206, 196)
+        curve = [((1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * p1[0] + t * t * p2[0],
+                  (1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * p1[1] + t * t * p2[1]) for t in [i / 12 for i in range(13)]]
+        pts = [(52, 30)] + curve + [(228, 194)]
+        pts = [(x(px) * k, py * k) for px, py in pts]
+        d.line(pts, fill=ice, width=width, joint='curve')
+        r = width / 2
+        for px, py in (pts[0], pts[-1]):      # скруглённые концы
+            d.ellipse((px - r, py - r, px + r, py + r), fill=ice)
+
+    stick(False)
+    stick(True)
+    # шайба: тёмный низ, синий бок, светло-синий верх
+    E = lambda cx, cy, rx, ry: (k * (cx - rx), k * (cy - ry), k * (cx + rx), k * (cy + ry))
+    d.ellipse(E(128, 214, 40, 15), fill=(15, 23, 38, 255))
+    d.ellipse(E(128, 214, 40, 15), fill=ACCENT + (255,))
+    d.rectangle((k * 88, k * 202, k * 168, k * 214), fill=ACCENT + (255,))
+    d.ellipse(E(128, 202, 40, 15), fill=(95, 178, 255, 255))
     return img.resize((side, side), Image.LANCZOS)
 
 

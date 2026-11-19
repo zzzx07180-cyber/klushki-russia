@@ -201,6 +201,7 @@ window.Picker = (function () {
   // ----- Значки -----
   const ICON_PUCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.5 10c0-1.95 3-3.5 6.75-3.5S22 8.05 22 10v3.9c0 1.95-3 3.5-6.75 3.5S8.5 15.85 8.5 13.9z"/><path fill="none" style="stroke:var(--accent)" stroke-width="1.3" d="M8.7 10.45c.65 1.6 3.4 2.85 6.55 2.85s5.9-1.25 6.55-2.85"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M3.2 8.8h3.2M1.6 12.1h4.8M3.2 15.4h3.2"/></svg>';   // шайба в полёте — как на кнопке «Подобрать клюшку»
   const ICON_AGAIN = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>';
+  const ICON_CART = '<svg viewBox="0 0 28 28" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h3.4l3 13.2h12.6l2.6-9.4H6.8"/><circle cx="11" cy="22.6" r="1.7"/><circle cx="20" cy="22.6" r="1.7"/></svg>';   // как значок в шапке
   const ICON_TG = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M21.5 3.6 2.9 10.8c-1.3.5-1.3 1.2-.2 1.6l4.8 1.5 1.8 5.6c.2.6.4.8.8.8.4 0 .6-.2.9-.5l2.3-2.2 4.8 3.5c.9.5 1.5.2 1.7-.8l3.1-14.8c.3-1.3-.5-1.9-1.4-1.5ZM8.7 13.6l9.4-5.9c.5-.3.9-.1.5.2l-7.9 7.2-.3 3.3-1.7-4.8Z"/></svg>';
 
   // =====================================================================
@@ -269,14 +270,16 @@ window.Picker = (function () {
   const SHOW = 5;            // сколько клюшек показать в чате; остальные — в каталоге
 
   const ask = (q) => bot(esc(q.text(answers)).replace(/\n/g, '<br>'));
-  // Заданные вопросы и ответы на них — видны, пока идёт подбор
-  const history = () => answeredList().flatMap((q) => [ask(q), me(label(q.id, answers[q.id]))]);
+  // Заданные вопросы и ответы на них — видны, пока идёт подбор.
+  // ⚠️ НЕ называть эту функцию history: она заслоняет историю браузера (window.history), и подбор
+  // перестаёт ставить «закладку» для кнопки «Назад» (так было до 2026-11-19).
+  const talk = () => answeredList().flatMap((q) => [ask(q), me(label(q.id, answers[q.id]))]);
 
   // Что на экране: пока идёт подбор — вопросы, ответы и следующий вопрос; в конце — ТОЛЬКО подобранные
   // клюшки (свои ответы покупатель и так знает; окошко с советом убрано — просьба владельца 2026-11-19)
   function messages() {
     const q = nextQuestion();
-    return q ? history().concat(ask(q)) : result();
+    return q ? talk().concat(ask(q)) : result();
   }
 
   function result() {
@@ -299,7 +302,16 @@ window.Picker = (function () {
     return out;
   }
 
-  // Кнопки внизу: варианты ответа — или, в конце, «Спросить в Telegram»
+  // Кнопки внизу: варианты ответа — или, в конце, «Перейти в корзину» и «Спросить в Telegram».
+  // «Перейти в корзину» видна, только когда в корзине что-то есть: положил клюшку — кнопка появилась
+  // (число и видимость обновляет cart.js по атрибуту data-cart-go). Корзина открывается поверх подбора;
+  // закрыл её — снова видны подобранные клюшки.
+  function cartHTML() {
+    if (!window.Cart) return '';
+    const n = window.Cart.count();
+    return `<button type="button" class="picker__cart" data-cart-open data-cart-go${n ? '' : ' hidden'}>
+        ${ICON_CART} Перейти в корзину <b class="picker__cart-count" data-cart-go-count>${n}</b></button>`;
+  }
   function footHTML() {
     const q = nextQuestion();
     if (q) {
@@ -310,7 +322,7 @@ window.Picker = (function () {
         ${answeredList().length ? '<button type="button" class="picker__back" data-picker-back>← Изменить прошлый ответ</button>' : ''}`;
     }
     const text = tgText(answers, advise(answers));
-    return `<a href="${esc(S.telegramLink(text))}" class="btn picker__tg" target="_blank" rel="noopener" data-picker-tg>${ICON_TG} Спросить у нас в Telegram</a>
+    return `${cartHTML()}<a href="${esc(S.telegramLink(text))}" class="btn picker__tg" target="_blank" rel="noopener" data-picker-tg>${ICON_TG} Спросить у нас в Telegram</a>
       <button type="button" class="picker__back" data-picker-again>Подобрать заново</button>`;
   }
 
@@ -318,7 +330,7 @@ window.Picker = (function () {
   function render(typing) {
     // «печатает»: вопросы и ответы (с только что нажатым) уже видны, а следующий вопрос или итог — ещё нет
     const list = typing
-      ? history().concat('<div class="picker-typing" aria-label="Помощник печатает"><i></i><i></i><i></i></div>')
+      ? talk().concat('<div class="picker-typing" aria-label="Помощник печатает"><i></i><i></i><i></i></div>')
       : messages();
     const from = shown;
     log.innerHTML = list.join('');

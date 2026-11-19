@@ -234,15 +234,18 @@ window.Cart = (function () {
   }
 
   // ----- Кнопка «В корзину» под товаром -----
-  // Товар уже в корзине — кнопка превращается в «В корзине ✓» и открывает корзину.
+  // Товар уже в корзине — кнопка превращается в «В корзине ✓», а повторное нажатие убирает его
+  // из корзины (просьба владельца 2026-11-19; раньше оно открывало корзину). Сама корзина — значок в шапке.
+  const IN_CART_HINT = 'Нажми ещё раз — уберём из корзины';
   function button(p, extraClass) {
     const inCart = has(p.id);
     return `<button type="button" class="btn${inCart ? ' btn--in-cart' : ''}${extraClass ? ' ' + extraClass : ''}" ` +
-      `data-cart-add="${esc(p.id)}">${inCart ? 'В корзине' : 'В корзину'}</button>`;
+      `data-cart-add="${esc(p.id)}"${inCart ? ` title="${IN_CART_HINT}"` : ''}>${inCart ? 'В корзине' : 'В корзину'}</button>`;
   }
   function paintButton(b) {
     const inCart = has(b.dataset.cartAdd);
     b.classList.toggle('btn--in-cart', inCart);
+    b.title = inCart ? IN_CART_HINT : '';
     b.textContent = inCart ? 'В корзине' : 'В корзину';
   }
 
@@ -1213,7 +1216,8 @@ window.Cart = (function () {
   document.addEventListener('click', (e) => {
     const addBtn = e.target.closest('[data-cart-add]');
     if (addBtn) {
-      if (has(addBtn.dataset.cartAdd)) open(); else add(addBtn.dataset.cartAdd, addBtn);
+      const id = addBtn.dataset.cartAdd;
+      if (has(id)) { remove(id); undo = null; } else add(id, addBtn);   // второе нажатие — убрать из корзины
       return;
     }
     if (e.target.closest('[data-cart-open]')) open();

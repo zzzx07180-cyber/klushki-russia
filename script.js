@@ -16,26 +16,6 @@ nav.querySelectorAll('a').forEach((link) => {
   });
 });
 
-// ===== Чёрная планка в конце страницы (.page-end-cap в style.css) =====
-// Включаем, когда низ подвала стоит у нижнего края экрана.
-{
-  const footer = document.querySelector('.footer');
-  if (footer) {
-    const cap = document.body.appendChild(document.createElement('div'));
-    cap.className = 'page-end-cap';
-    let on = false;
-    const check = () => {
-      const gap = innerHeight - footer.getBoundingClientRect().bottom;
-      const end = gap > -2 && gap < 4;
-      if (end !== on) cap.classList.toggle('is-on', on = end);
-    };
-    addEventListener('scroll', check, { passive: true });
-    addEventListener('resize', check);
-    if (window.ResizeObserver) new ResizeObserver(check).observe(document.body);  // каталог отфильтровали и т. п.
-    check();
-  }
-}
-
 // ===== Шайба въезжает по льду (только на главной) =====
 // При открытии сайта и при каждом нажатии на шайбу запускаем анимацию заново.
 const puckZone = document.querySelector('.puck-zone');

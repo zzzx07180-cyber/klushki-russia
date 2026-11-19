@@ -497,24 +497,9 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 1.5px;
+  box-shadow: 0 10px 0 var(--black);   /* закрывает щель в полточки под подвалом (высота страницы дробная) */
 }
 .footer__inner { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-
-/* Чёрная планка у низа экрана — продолжение подвала: закрывает щель в полточки под ним
-   (высота страницы дробная) и место под панелью Telegram. Видна только в конце страницы —
-   её включает script.js. */
-.page-end-cap {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: calc(-1 * var(--ice-below));
-  height: calc(12px + var(--ice-below));
-  background: var(--black);
-  z-index: -1;                 /* над льдом (он раньше в странице), под подвалом */
-  pointer-events: none;
-  opacity: 0;
-}
-.page-end-cap.is-on { opacity: 1; }
 
 /* ===== Плавающая кнопка связи ===== */
 .float-chat {

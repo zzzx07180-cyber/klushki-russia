@@ -502,6 +502,11 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 1.5px;
+  /* Чёрная полоска под подвалом. Высота страницы бывает дробной (14 669,5 точки), а прокрутка
+     округляет её вверх (14 670) — в самом низу под подвалом оставалась щель в полточки, на iPhone
+     через неё торчал лёд (владелец 2026-11-19: «пиксельная … торчит»). Полоска — это тень,
+     а не блок: тень не удлиняет страницу, поэтому новой щели под ней не появится. */
+  box-shadow: 0 10px 0 var(--black);
 }
 .footer__inner { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 

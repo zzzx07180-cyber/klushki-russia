@@ -10,6 +10,7 @@
   --accent-dark: #0d68d0;
   --accent-glow: rgba(30, 139, 255, .45);
   --ice: #7fd4ff;              /* светло-ледяной — для подсветок */
+  --ice-below: 160px;          /* запас льда ниже края экрана — под нижней панелью Telegram (см. .ice-bg) */
 
   /* Шрифты (все — SIL Open Font License, бесплатно и для коммерции) */
   --f-display: "Roboto Condensed", "Arial Narrow", sans-serif;  /* крупные заголовки */
@@ -93,13 +94,20 @@ body {
   overscroll-behavior-y: none; /* то же, что у html: некоторые браузеры берут настройку страницы с body */
 }
 
-/* Холст с текстурой льда — лежит под всем сайтом и не прокручивается */
+/* Холст с текстурой льда — лежит под всем сайтом и не прокручивается.
+   Он выше экрана на --ice-below: браузер Telegram показывает страницу и ПОД своей нижней
+   полупрозрачной панелью (назад / вперёд / поделиться), а «экран» для сайта кончается над ней.
+   Лёд ростом ровно с экран туда не доставал, и при прокрутке там была полоса — сначала синяя,
+   потом чёрная (цвет подложки) — владелец 2026-11-19. Ниже экрана холст не удлиняет страницу:
+   он «приклеен» к экрану (position: fixed). Затемнение краёв и общий тон ice.js строит
+   по видимой части — лёд на экране выглядит как раньше. */
 .ice-bg {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
   width: 100vw;
-  height: 100vh;
-  height: 100lvh;
+  height: calc(100vh + var(--ice-below));
+  height: calc(100lvh + var(--ice-below));
   z-index: -1;
   display: block;
 }
@@ -530,8 +538,10 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
-  height: 12px;
+  /* уходит ниже края экрана на столько же, на сколько лёд: в конце страницы под нижней панелью
+     Telegram должно быть чёрное продолжение подвала, а не лёд */
+  bottom: calc(0px - var(--ice-below));
+  height: calc(12px + var(--ice-below));
   background: var(--black);
   z-index: -1;                 /* как у льда, но позже в странице — значит, поверх него */
   pointer-events: none;

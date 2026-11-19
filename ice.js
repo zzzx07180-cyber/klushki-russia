@@ -62,12 +62,17 @@
     canvas.width = w * dpr;
     canvas.height = h * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // Холст выше экрана на --ice-below (запас под нижней панелью Telegram, см. style.css).
+    // Общий тон и затемнение краёв строим по видимой части (view) — на экране лёд как раньше,
+    // а запас внизу продолжает его, чуть темнее, как края экрана.
+    const below = parseFloat(getComputedStyle(canvas).getPropertyValue('--ice-below')) || 0;
+    const view = Math.max(1, h - below);
 
     const rnd = makeRandom(20261111);
     const R = (a, b) => a + rnd() * (b - a);
 
     // 1. База: глубокий сине-стальной лёд
-    const base = ctx.createLinearGradient(0, 0, w * 0.3, h);
+    const base = ctx.createLinearGradient(0, 0, w * 0.3, view);
     base.addColorStop(0, '#2c4566');
     base.addColorStop(0.5, '#1d3352');
     base.addColorStop(1, '#14243b');
@@ -77,7 +82,7 @@
     // 2. Облачные разводы: мягкие светлые и тёмные пятна, вытянутые по горизонтали.
     //    Края пятен размываются ГРАДИЕНТОМ, а не ctx.filter = 'blur(…)': Safari на iPhone
     //    (и браузер внутри Telegram) такой фильтр не умеет — там вместо облаков были резкие овалы.
-    const sigma = Math.max(w, h) / 70;                     // сила размытия краёв, px
+    const sigma = Math.max(w, view) / 70;                  // сила размытия краёв, px
     const blobs = Math.round((w * h) / 6000);
     for (let i = 0; i < blobs; i++) {
       const x = R(-0.1, 1.1) * w;
@@ -133,7 +138,7 @@
     }
 
     // 5. Лёгкое затемнение по краям — чтобы текст лучше читался
-    const vig = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.8);
+    const vig = ctx.createRadialGradient(w / 2, view / 2, Math.min(w, view) * 0.3, w / 2, view / 2, Math.max(w, view) * 0.8);
     vig.addColorStop(0, 'rgba(0,0,0,0)');
     vig.addColorStop(1, 'rgba(3,8,18,.4)');
     ctx.fillStyle = vig;

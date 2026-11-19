@@ -259,12 +259,9 @@ window.Cart = (function () {
     if (headCount) { headCount.textContent = n; headCount.hidden = n === 0; }
     if (headBtn) headBtn.setAttribute('aria-label', n ? `Корзина: ${n} ${plural(n, WORDS)}` : 'Корзина пуста');
     document.querySelectorAll('[data-cart-add]').forEach(paintButton);
-    // Кнопки «Перейти в корзину» (например, в подборе клюшки): видны, только когда в корзине что-то есть
-    document.querySelectorAll('[data-cart-go]').forEach((b) => {
-      b.hidden = n === 0;
-      const c = b.querySelector('[data-cart-go-count]');
-      if (c) c.textContent = n;
-    });
+    // Кнопки «Перейти в корзину» (например, в подборе клюшки): видны, только когда в корзине что-то есть.
+    // ⚠️ Признак — data-cart-link, НЕ data-cart-go: data-cart-go — шаги внутри корзины («Оформить заказ», «Оплатить»)
+    document.querySelectorAll('[data-cart-link]').forEach((b) => { b.hidden = n === 0; });
     if (isOpen) render();
   }
 

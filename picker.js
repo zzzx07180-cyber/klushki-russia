@@ -304,13 +304,13 @@ window.Picker = (function () {
 
   // Кнопки внизу: варианты ответа — или, в конце, «Перейти в корзину» и «Спросить в Telegram».
   // «Перейти в корзину» видна, только когда в корзине что-то есть: положил клюшку — кнопка появилась
-  // (число и видимость обновляет cart.js по атрибуту data-cart-go). Корзина открывается поверх подбора;
-  // закрыл её — снова видны подобранные клюшки.
+  // (показывает и прячет её cart.js по атрибуту data-cart-link). Корзина открывается поверх подбора;
+  // закрыл её — снова видны подобранные клюшки. Числа товаров на кнопке НЕТ — владелец 2026-11-19:
+  // «некрасиво» (число и так видно на значке корзины в шапке).
   function cartHTML() {
     if (!window.Cart) return '';
-    const n = window.Cart.count();
-    return `<button type="button" class="picker__cart" data-cart-open data-cart-go${n ? '' : ' hidden'}>
-        ${ICON_CART} Перейти в корзину <b class="picker__cart-count" data-cart-go-count>${n}</b></button>`;
+    return `<button type="button" class="picker__cart" data-cart-open data-cart-link${window.Cart.count() ? '' : ' hidden'}>
+        ${ICON_CART} Перейти в корзину</button>`;
   }
   function footHTML() {
     const q = nextQuestion();

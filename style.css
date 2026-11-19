@@ -2163,37 +2163,6 @@ button.float-chat { cursor: pointer; }
 .picker-typing i:nth-child(3) { animation-delay: .3s; }
 @keyframes picker-dot { 30% { opacity: 1; transform: translateY(-3px); } }
 
-/* совет: жёсткость, загиб, хват, длина */
-.picker-rec {
-  flex: none;
-  padding: 14px 16px;
-  background: rgba(30, 139, 255, .1);
-  border: 1px solid rgba(30, 139, 255, .45);
-  border-left: 3px solid var(--accent);
-}
-.picker-rec__title {
-  margin-bottom: 10px;
-  font-family: var(--f-ui);
-  font-weight: 600;
-  font-size: 13px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--ice);
-}
-.picker-rec dl { display: grid; gap: 11px; }
-.picker-rec dl > div { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 10px; }
-.picker-rec dt { padding-top: 3px; color: var(--dim); font-size: 13px; }
-.picker-rec dd b {
-  display: block;
-  font-family: var(--f-display);
-  font-style: italic;
-  font-weight: 900;
-  font-size: 19px;
-  line-height: 1.1;
-  text-transform: uppercase;
-}
-.picker-rec dd small { display: block; margin-top: 3px; color: var(--dim); font-size: 12.5px; line-height: 1.35; }
-
 /* подходящие клюшки */
 .picker-cards { flex: none; list-style: none; display: grid; gap: 8px; }
 .picker-card {

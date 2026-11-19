@@ -59,13 +59,19 @@ window.Picker = (function () {
     a4: [['w1', 'До 60 кг', 65], ['w2', '60–70 кг', 75], ['w3', '70–80 кг', 80], ['w4', '80–90 кг', 85],
       ['w5', '90–100 кг', 95], ['w6', '100–110 кг', 100], ['w7', 'Больше 110 кг', 110]]
   };
-  const SIZES = { yth: ['Детская', 'Youth'], jr: ['Юниорская', 'Junior'], int: ['Подростковая', 'Intermediate'], sr: ['Взрослая', 'Senior'] };
+  // размер клюшки: [одна, по-английски, несколько]
+  const SIZES = {
+    yth: ['Детская', 'Youth', 'детские'], jr: ['Юниорская', 'Junior', 'юниорские'],
+    int: ['Подростковая', 'Intermediate', 'подростковые'], sr: ['Взрослая', 'Senior', 'взрослые']
+  };
 
-  // Загибы. P92 у Bauer и P29 у CCM — один и тот же загиб, поэтому идут парой
+  // Загибы. P92 у Bauer и P29 у CCM — один и тот же загиб, поэтому идут парой.
+  // toe — к носку (быстрый бросок с кистей, обводка), mid — средний открытый (и пас, и бросок),
+  // midClosed — средний, чуть закрытее (точный пас и плотный щелчок)
   const CURVES = {
-    toe: { codes: ['P28'], name: 'P28', note: 'P28 — к носку: быстрый бросок с кистей, обводка' },
-    mid: { codes: ['P92', 'P29'], name: 'P92 / P29', note: 'P92 / P29 — средний открытый, и пас, и бросок (P92 у Bauer = P29 у CCM)' },
-    midClosed: { codes: ['P88'], name: 'P88', note: 'P88 — средний, чуть закрытее: точный пас и плотный щелчок' }
+    toe: { codes: ['P28'], name: 'P28' },
+    mid: { codes: ['P92', 'P29'], name: 'P92 / P29' },
+    midClosed: { codes: ['P88'], name: 'P88' }
   };
   // Нападающим — к носку (новичку сначала средний: с ним проще пас и бросок неудобной стороной),
   // защитникам — средний: пас на дальнюю дистанцию и щелчок от синей линии
@@ -165,6 +171,14 @@ window.Picker = (function () {
   }
 
   const sizeText = (size) => SIZES[size][0].toLowerCase() + ' (' + SIZES[size][1] + ')';
+  // Какие клюшки подобраны, одной строкой: «взрослые (Senior), жёсткость 80–90, загиб P28 или P92 / P29, левый хват»
+  // one — в единственном числе («взрослая …»)
+  function criteria(rec, one) {
+    const size = (one ? SIZES[rec.size][0].toLowerCase() : SIZES[rec.size][2]) + ' (' + SIZES[rec.size][1] + ')';
+    const parts = rec.goalie ? [one ? 'вратарская' : 'вратарские']
+      : [size, `жёсткость ${rec.from}–${rec.to}`, 'загиб ' + rec.groups.map((g) => CURVES[g].name).join(' или ')];
+    return parts.concat(rec.hand.toLowerCase() + ' хват').join(', ');
+  }
 
   // Текст для Telegram: ответы и совет одним сообщением — продавцу сразу всё понятно
   function tgText(a, rec) {
@@ -222,41 +236,6 @@ window.Picker = (function () {
   const bot = (html, cls) => `<div class="picker-msg picker-msg--bot${cls ? ' ' + cls : ''}">${html}</div>`;
   const me = (text) => `<div class="picker-msg picker-msg--me">${esc(text)}</div>`;
 
-  // Совет: размер, жёсткость, загиб, прогиб, длина, хват
-  function recHTML(a, rec) {
-    const row = (dt, b, small) => `<div><dt>${dt}</dt><dd><b>${b}</b>${small ? `<small>${small}</small>` : ''}</dd></div>`;
-    const sizeRow = row('Размер', `${SIZES[rec.size][0]} (${SIZES[rec.size][1]})`, 'по возрасту и росту: длина и толщина рукоятки');
-    const handRow = row('Хват', esc(rec.hand));
-    if (rec.goalie) {
-      return `<div class="picker-rec"><p class="picker-rec__title">Что смотреть</p><dl>
-        ${sizeRow}
-        ${row('Длина пера', rec.size === 'sr' ? '25–27″' : 'По стойке',
-          'в стойке клюшка лежит на льду, а блин — на одной линии со щитком')}
-        ${handRow}
-      </dl></div>`;
-    }
-    const forward = a.role !== 'defense';
-    const why = ['по весу ' + label('weight', a.weight).toLowerCase(),
-      a.level === 'new' && 'новичку — мягче, её легче согнуть',
-      !forward && 'защитнику — жёстче для щелчка'].filter(Boolean).join('; ');
-    const curves = rec.groups.map((g) => CURVES[g]);
-    return `<div class="picker-rec"><p class="picker-rec__title">Тебе подойдёт</p><dl>
-      ${sizeRow}
-      ${row('Жёсткость', `${rec.from}–${rec.to}`, why)}
-      ${row('Загиб', curves.map((c) => c.name).join(' или '),
-        (!forward ? 'защитникам — средний: пас на дальнюю и щелчок. '
-          : a.level === 'new' ? 'нападающим — чаще к носку, но новичку проще начать со среднего. '
-          : 'нападающим — чаще к носку. ') + curves.map((c) => c.note).join('. '))}
-      ${row('Прогиб', forward ? 'Низкий' : 'Средний', forward
-        ? 'клюшка гнётся ближе к крюку — быстрый бросок с кистей'
-        : 'гнётся посередине — мощный щелчок от синей линии')}
-      ${row('Длина', forward ? 'До подбородка' : 'Подбородок — нос', (forward
-        ? 'в коньках. Нападающим — покороче: удобнее обводка и бросок с кистей'
-        : 'в коньках. Защитникам — подлиннее: больше охват и сильнее щелчок') + '. Подрезка делает клюшку жёстче')}
-      ${handRow}
-    </dl></div>`;
-  }
-
   // Карточка клюшки: совпавшие с советом характеристики подсвечены
   function cardHTML(p, rec) {
     const url = 'product.html?id=' + encodeURIComponent(p.id);
@@ -287,33 +266,33 @@ window.Picker = (function () {
 
   const SHOW = 5;            // сколько клюшек показать в чате; остальные — в каталоге
 
-  // Весь разговор: заданные вопросы и ответы, потом — следующий вопрос или итог
-  function messages() {
-    const out = [];
-    const ask = (q) => bot(esc(q.text(answers)).replace(/\n/g, '<br>'));
-    answeredList().forEach((q) => out.push(ask(q), me(label(q.id, answers[q.id]))));
-    const q = nextQuestion();
-    if (q) { out.push(ask(q)); return out; }
+  const ask = (q) => bot(esc(q.text(answers)).replace(/\n/g, '<br>'));
+  // Заданные вопросы и ответы на них — видны, пока идёт подбор
+  const history = () => answeredList().flatMap((q) => [ask(q), me(label(q.id, answers[q.id]))]);
 
+  // Что на экране: пока идёт подбор — вопросы, ответы и следующий вопрос; в конце — ТОЛЬКО подобранные
+  // клюшки (свои ответы покупатель и так знает; окошко с советом убрано — просьба владельца 2026-11-19)
+  function messages() {
+    const q = nextQuestion();
+    return q ? history().concat(ask(q)) : result();
+  }
+
+  function result() {
     const rec = advise(answers);
-    out.push(bot('Готово! Вот что тебе подойдёт.', 'picker-msg--done'), recHTML(answers, rec));
-    if (rec.size !== 'sr') {
-      out.push(bot(`Тебе нужна ${sizeText(rec.size)} клюшка. В наличии сейчас в основном взрослые — ` +
-        (rec.size === 'yth' ? 'напиши нам, подберём детскую под заказ.' : 'если ниже не найдётся подходящей, напиши нам: подберём под заказ.')));
-    }
     const list = rec.size === 'yth' ? [] : matches(answers, rec);   // детских клюшек в наличии нет — взрослые не предлагаем
+    // «подобрал» — только с жёсткостью в советованном диапазоне (у вратарских — все с нужным хватом)
+    const exact = rec.goalie ? list.length : list.filter((p) => inRange(p, rec)).length;
+    const what = rec.goalie ? ['вратарскую клюшку', 'вратарские клюшки', 'вратарских клюшек'] : ['клюшку', 'клюшки', 'клюшек'];
+    const order = rec.size === 'sr' ? '' : ' Если не подойдут — подберём под заказ.';
+    const text = exact === 1 ? `Подобрал для тебя одну ${what[0]}: ${criteria(rec, true)}.${order}`
+      : exact ? `Подобрал для тебя ${exact} ${plural(exact, what)}: ${criteria(rec)}.${exact > SHOW ? ' Вот самые подходящие:' : ''}${order}`
+      : list.length ? `Клюшки под тебя — ${criteria(rec)} — в наличии сейчас нет. Вот самые близкие по жёсткости:`
+      : `Клюшки под тебя — ${criteria(rec)} — в наличии сейчас нет. Напиши нам — подберём под заказ.`;
+    const out = [bot(esc(text), 'picker-msg--done')];
     if (list.length) {
-      const handURL = 'catalog.html?cat=sticks' + (rec.hand ? '&hand=' + encodeURIComponent(rec.hand) : '');
-      // «подходят» — только с жёсткостью в советованном диапазоне (у вратарских — все с нужным хватом)
-      const exact = rec.goalie ? list.length : list.filter((p) => inRange(p, rec)).length;
-      const what = rec.goalie ? ['вратарская клюшка', 'вратарские клюшки', 'вратарских клюшек'] : ['клюшка', 'клюшки', 'клюшек'];
-      out.push(bot(exact === 1 ? `Из наличия подходит одна ${what[0]}:`
-        : exact ? `Из наличия ${plural(exact, ['подходит', 'подходят', 'подходят'])} ${exact} ${plural(exact, what)}${exact > SHOW ? ' — вот самые близкие' : ''}:`
-        : 'Точно под твои параметры в наличии сейчас нет, но вот близкие по жёсткости:'));
       out.push(`<ul class="picker-cards">${list.slice(0, SHOW).map((p) => cardHTML(p, rec)).join('')}</ul>`);
+      const handURL = 'catalog.html?cat=sticks&hand=' + encodeURIComponent(rec.hand);
       out.push(`<a class="picker-more" href="${handURL}">Все клюшки с ${rec.hand === 'Левый' ? 'левым' : 'правым'} хватом в каталоге →</a>`);
-    } else if (rec.size !== 'yth') {
-      out.push(bot('Сейчас в наличии нет клюшки под эти параметры. Напиши нам — подберём под заказ или посоветуем, что взять из того, что есть.'));
     }
     return out;
   }
@@ -335,13 +314,10 @@ window.Picker = (function () {
 
   // Нарисовать разговор. typing — показать «помощник печатает…» вместо следующего вопроса
   function render(typing) {
-    const items = messages();
-    let list = items;
-    if (typing) {
-      // последний ответ покупателя уже виден, а следующий вопрос (или итог) «печатается»
-      const lastMe = items.map((x) => x.includes('picker-msg--me')).lastIndexOf(true);
-      list = items.slice(0, lastMe + 1).concat('<div class="picker-typing" aria-label="Помощник печатает"><i></i><i></i><i></i></div>');
-    }
+    // «печатает»: вопросы и ответы (с только что нажатым) уже видны, а следующий вопрос или итог — ещё нет
+    const list = typing
+      ? history().concat('<div class="picker-typing" aria-label="Помощник печатает"><i></i><i></i><i></i></div>')
+      : messages();
     const from = shown;
     log.innerHTML = list.join('');
     Array.from(log.children).forEach((el, i) => { if (i >= from) el.classList.add('is-new'); });
@@ -362,10 +338,12 @@ window.Picker = (function () {
     if (!q || busy || !optionsOf(q).some((o) => o[0] === value)) return;
     answers[q.id] = value;
     save();
-    if (still()) { render(); return; }
+    const done = !nextQuestion();                    // это был последний вопрос — дальше итог
+    const showResult = () => { if (done) shown = 0; render(); };   // итог заменяет разговор и появляется целиком
+    if (still()) { showResult(); return; }
     busy = true;
     render(true);
-    setTimeout(() => { busy = false; if (isOpen) render(); }, nextQuestion() ? 380 : 650);
+    setTimeout(() => { busy = false; if (isOpen) showResult(); }, done ? 650 : 380);
   }
 
   function back() {

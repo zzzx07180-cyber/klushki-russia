@@ -160,7 +160,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 
 .nav { display: flex; gap: 26px; }
-.nav a, .header__phone {
+.nav a {
   font-family: var(--f-ui);
   font-weight: 600;
   font-size: 14px;
@@ -168,8 +168,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   letter-spacing: 1.5px;
   transition: color .15s;
 }
-.nav a:hover, .header__phone:hover { color: var(--ice); }
-.header__phone { justify-self: end; }
+.nav a:hover { color: var(--ice); }
 
 .logo { font-size: 32px; line-height: 1; white-space: nowrap; letter-spacing: .5px; }
 .logo__tag {
@@ -1983,7 +1982,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 /* ===== Шапка на узких экранах: меню прячется под «бургер» ===== */
 @media (max-width: 1180px) {
   .header__inner { grid-template-columns: 44px 1fr 44px; padding: 0 10px; }
-  .header__phone { display: none; }
   .logo { justify-self: center; font-size: 28px; }
 
   .burger {

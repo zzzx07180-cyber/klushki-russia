@@ -82,7 +82,7 @@ body {
   font-family: var(--f-text);
   color: var(--white);
   line-height: 1.55;
-  background: var(--black);    /* видна, пока рисуется лёд, и у краёв экрана в Telegram */
+  background: #1a2f4b;         /* цвет льда: им Safari тонирует полосу под своей нижней панелью */
   overflow-x: hidden;
 }
 

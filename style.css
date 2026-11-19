@@ -10,7 +10,6 @@
   --accent-dark: #0d68d0;
   --accent-glow: rgba(30, 139, 255, .45);
   --ice: #7fd4ff;              /* светло-ледяной — для подсветок */
-  --ice-below: 160px;          /* запас льда ниже экрана — под нижней панелью Telegram */
 
   /* Шрифты (все — SIL Open Font License, бесплатно и для коммерции) */
   --f-display: "Roboto Condensed", "Arial Narrow", sans-serif;  /* крупные заголовки */
@@ -74,26 +73,23 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-/* Страница не «пружинит» на краях — шапка и подвал не отрываются от краёв экрана.
-   Только по вертикали: по горизонтали выключился бы «назад» свайпом по тачпаду. */
-html { scroll-behavior: smooth; overscroll-behavior-y: none; }
+html { scroll-behavior: smooth; }
 
 body {
   font-family: var(--f-text);
   color: var(--white);
   line-height: 1.55;
-  background: #1a2f4b;         /* цвет льда: им Safari тонирует полосу под своей нижней панелью */
+  background: #1a2f4b;         /* пока рисуется лёд */
   overflow-x: hidden;
 }
 
-/* Холст с текстурой льда — под всем сайтом, не прокручивается.
-   Выше экрана на --ice-below: в Telegram страницу видно и под его нижней панелью. */
+/* Холст с текстурой льда — лежит под всем сайтом и не прокручивается */
 .ice-bg {
   position: fixed;
   inset: 0;
   width: 100vw;
-  height: calc(100vh + var(--ice-below));
-  height: calc(100lvh + var(--ice-below));
+  height: 100vh;
+  height: 100lvh;
   z-index: -1;
   display: block;
 }
@@ -139,16 +135,17 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   border-bottom: 2px solid var(--accent);
   box-shadow: 0 2px 18px var(--accent-glow);
 }
-/* Чёрный «козырёк» над шапкой: Telegram и Safari кладут над ней свою полупрозрачную панель,
-   и в щели просвечивала страница. Высота в px, не в vh — иначе слой шапки ростом с экран
-   и перерисовывается при каждом движении панелей Telegram. */
+/* Чёрный «козырёк» над шапкой. Браузер Telegram (и Safari на новых iPhone) кладёт поверх верха
+   страницы свою полупрозрачную панель с адресом, а шапку прилепляет под ней — и в щели над шапкой
+   просвечивала прокручиваемая страница. Козырёк продолжает чёрный фон шапки вверх и закрывает щель.
+   На обычных экранах он целиком за верхним краем окна и не виден. */
 .header::before {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
   bottom: 100%;
-  height: 200px;
+  height: 100vh;
   background: var(--black);
   pointer-events: none;
 }
@@ -399,6 +396,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   border: 1px solid var(--line);
   padding: 20px 22px 24px;
   clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+  backdrop-filter: blur(4px);
   margin-bottom: 28px;
 }
 .panel__label {
@@ -497,7 +495,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  box-shadow: 0 10px 0 var(--black);   /* закрывает щель в полточки под подвалом (высота страницы дробная) */
 }
 .footer__inner { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 

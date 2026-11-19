@@ -73,11 +73,7 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-/* overscroll-behavior-y: none — страница не «пружинит» ни сверху, ни снизу: на iPhone её нельзя
-   оттянуть за край, шапка и подвал не отрываются от краёв экрана (владелец 2026-11-19).
-   WebKit берёт это только у html. Только по вертикали: по горизонтали выключился бы «назад»
-   свайпом по тачпаду. Цена — нет жеста «потянуть вниз, чтобы обновить». */
-html { scroll-behavior: smooth; overscroll-behavior-y: none; }
+html { scroll-behavior: smooth; }
 
 body {
   font-family: var(--f-text);
@@ -500,26 +496,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   text-transform: uppercase;
   letter-spacing: 1.5px;
 }
-/* Подвал чёрный до самого низа экрана (владелец 2026-11-19: «как бы далеко я ни листал — чёрный»).
-   Под подвалом бывает то, что не часть страницы: щель в полточки (высота страницы дробная),
-   место под нижней панелью Safari / Telegram (Telegram там показывал свой белый фон).
-   Закрываем это чёрной планкой, «приклеенной» к низу экрана: она уходит за край экрана на 200px,
-   а на экран заходит на 12px — иначе телефон её не рисует. Лежит ПОД подвалом (z-index: -1, как лёд),
-   поэтому эти 12px не видны. Включается, только когда подвал закрывает низ экрана (класс is-on
-   ставит script.js), — в остальное время у низа экрана всё как было. Страницу не удлиняет. */
-.page-end-cap {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: -200px;
-  height: 212px;
-  background: var(--black);
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0;
-}
-.page-end-cap.is-on { opacity: 1; }
-
 .footer__inner { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 
 /* ===== Плавающая кнопка связи ===== */

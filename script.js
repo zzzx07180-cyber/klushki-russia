@@ -16,29 +16,6 @@ nav.querySelectorAll('a').forEach((link) => {
   });
 });
 
-// ===== Подвал чёрный до самого низа экрана (.page-end-cap в style.css) =====
-// Когда подвал закрывает низ экрана, включаем чёрную планку, которая уходит за край экрана.
-{
-  const footer = document.querySelector('.footer');
-  if (footer) {
-    const cap = document.createElement('div');
-    cap.className = 'page-end-cap';
-    cap.setAttribute('aria-hidden', 'true');
-    document.body.appendChild(cap);
-    let on = null;
-    const check = () => {
-      const r = footer.getBoundingClientRect();
-      const h = window.innerHeight;
-      const end = r.top < h - 12 && r.bottom > h - 2;     // подвал закрывает нижние 12px экрана
-      if (end !== on) cap.classList.toggle('is-on', on = end);   // трогаем, только когда меняется
-    };
-    window.addEventListener('scroll', check, { passive: true });
-    window.addEventListener('resize', check);
-    if (window.ResizeObserver) new ResizeObserver(check).observe(document.body);   // каталог отфильтровали и т. п.
-    check();
-  }
-}
-
 // ===== Шайба въезжает по льду (только на главной) =====
 // При открытии сайта и при каждом нажатии на шайбу запускаем анимацию заново.
 const puckZone = document.querySelector('.puck-zone');

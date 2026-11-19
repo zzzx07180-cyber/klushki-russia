@@ -81,7 +81,7 @@ body {
   font-family: var(--f-text);
   color: var(--white);
   line-height: 1.55;
-  background: #273850;         /* средний цвет льда у низа экрана: им Safari тонирует полосу под своей панелью */
+  background: #1a2f4b;         /* пока рисуется лёд; этим же цветом Safari тонирует полосу под своей панелью */
   overflow-x: hidden;
 }
 

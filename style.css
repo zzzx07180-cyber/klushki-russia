@@ -73,7 +73,11 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+/* overscroll-behavior-y: none — страница не «пружинит» ни сверху, ни снизу: на iPhone её нельзя
+   оттянуть за край, шапка и подвал не отрываются от краёв экрана (владелец 2026-11-19).
+   WebKit берёт это только у html. Только по вертикали: по горизонтали выключился бы «назад»
+   свайпом по тачпаду. Цена — нет жеста «потянуть вниз, чтобы обновить». */
+html { scroll-behavior: smooth; overscroll-behavior-y: none; }
 
 body {
   font-family: var(--f-text);

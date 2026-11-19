@@ -8,10 +8,10 @@ window.Shop = (function () {
   // VK — полный адрес страницы ВКонтакте, например 'https://vk.com/klushki' (или сразу сообщения:
   // 'https://vk.me/klushki'). Пока VK пустой, кнопок ВКонтакте на сайте не видно, а в корзине
   // вариант «ВКонтакте» серый с пометкой «скоро». Впишешь адрес — всё появится само.
-  const TELEGRAM = 'https://t.me/romanzakarov';
+  const TELEGRAM = 'https://t.me/kucher18';
   const VK = '';
   const tgName = (TELEGRAM.match(/t\.me\/(\w{3,})/) || [])[1];
-  const TELEGRAM_NAME = tgName ? '@' + tgName : '';           // «@romanzakarov» — для подписей
+  const TELEGRAM_NAME = tgName ? '@' + tgName : '';           // «@kucher18» — для подписей
   // «в Telegram» или «в Telegram или ВКонтакте» — для подсказок на страницах
   const CHATS_TEXT = VK ? 'Telegram или ВКонтакте' : 'Telegram';
 

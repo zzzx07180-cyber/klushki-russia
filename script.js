@@ -16,34 +16,6 @@ nav.querySelectorAll('a').forEach((link) => {
   });
 });
 
-// ===== Браузер внутри Telegram (iPhone): чёрное над шапкой и под подвалом =====
-// Где сайта нет, под панелями Telegram виден его белый фон (владелец 2026-11-19). Класс in-telegram
-// ставит ice.js (там же — как узнаём Telegram); полосы .tg-edge оформлены в style.css.
-// Нижняя полоса включается, только когда до конца страницы осталось меньше её роста: в самом низу
-// под панелью продолжается подвал, а в остальное время сквозь панель виден лёд.
-if (document.documentElement.classList.contains('in-telegram')) {
-  const root = document.documentElement;
-  const edge = (kind) => {
-    const el = document.createElement('div');
-    el.className = 'tg-edge tg-edge--' + kind;
-    el.setAttribute('aria-hidden', 'true');
-    return document.body.appendChild(el);
-  };
-  edge('top');
-  const bottom = edge('bottom');
-  const reach = parseFloat(getComputedStyle(root).getPropertyValue('--tg-below')) || 200;
-  let on = null;
-  const check = () => {
-    const toEnd = root.scrollHeight - (window.scrollY + window.innerHeight);   // сколько ещё можно прокрутить
-    const end = toEnd < reach;
-    if (end !== on) bottom.classList.toggle('is-on', on = end);               // трогаем, только когда меняется
-  };
-  window.addEventListener('scroll', check, { passive: true });
-  window.addEventListener('resize', check);
-  if (window.ResizeObserver) new ResizeObserver(check).observe(document.body);   // каталог отфильтровали и т. п.
-  check();
-}
-
 // ===== Шайба въезжает по льду (только на главной) =====
 // При открытии сайта и при каждом нажатии на шайбу запускаем анимацию заново.
 const puckZone = document.querySelector('.puck-zone');

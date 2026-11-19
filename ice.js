@@ -5,16 +5,6 @@
 //   3) снежная крошка — мелкие светлые точки.
 // Рисунок одинаковый при каждом открытии (используем «случайные» числа из фиксированного seed).
 
-// Встроенный браузер Telegram на iPhone ставит окно сайта между своими панелями, но не обрезает
-// страницу по краям окна: под панелями видно то, что «за краем» сайта, а где сайта нет — белый
-// фон самого Telegram (светлая тема). Узнаём его по TelegramWebviewProxy — это имя Telegram сам
-// добавляет на каждую страницу. Класс in-telegram на <html>: style.css продлевает лёд вниз под
-// панель (--tg-below), script.js кладёт чёрное над шапкой и под подвалом. В Safari ничего этого нет.
-// Ставим класс ДО рисования льда — холст сразу нужного роста.
-if (window.TelegramWebviewProxy || (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.performAction)) {
-  document.documentElement.classList.add('in-telegram');
-}
-
 (function () {
   const canvas = document.getElementById('ice');
   if (!canvas) return;
@@ -72,17 +62,12 @@ if (window.TelegramWebviewProxy || (window.webkit && window.webkit.messageHandle
     canvas.width = w * dpr;
     canvas.height = h * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // В Telegram холст длиннее экрана на --tg-below (запас под его нижней панелью). Общий тон
-    // и затемнение краёв строим по видимой части (view) — на экране лёд такой же, как везде.
-    const below = document.documentElement.classList.contains('in-telegram')
-      ? parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tg-below')) || 0 : 0;
-    const view = Math.max(1, h - below);
 
     const rnd = makeRandom(20261111);
     const R = (a, b) => a + rnd() * (b - a);
 
     // 1. База: глубокий сине-стальной лёд
-    const base = ctx.createLinearGradient(0, 0, w * 0.3, view);
+    const base = ctx.createLinearGradient(0, 0, w * 0.3, h);
     base.addColorStop(0, '#2c4566');
     base.addColorStop(0.5, '#1d3352');
     base.addColorStop(1, '#14243b');
@@ -92,7 +77,7 @@ if (window.TelegramWebviewProxy || (window.webkit && window.webkit.messageHandle
     // 2. Облачные разводы: мягкие светлые и тёмные пятна, вытянутые по горизонтали.
     //    Края пятен размываются ГРАДИЕНТОМ, а не ctx.filter = 'blur(…)': Safari на iPhone
     //    (и браузер внутри Telegram) такой фильтр не умеет — там вместо облаков были резкие овалы.
-    const sigma = Math.max(w, view) / 70;                  // сила размытия краёв, px
+    const sigma = Math.max(w, h) / 70;                     // сила размытия краёв, px
     const blobs = Math.round((w * h) / 6000);
     for (let i = 0; i < blobs; i++) {
       const x = R(-0.1, 1.1) * w;
@@ -148,7 +133,7 @@ if (window.TelegramWebviewProxy || (window.webkit && window.webkit.messageHandle
     }
 
     // 5. Лёгкое затемнение по краям — чтобы текст лучше читался
-    const vig = ctx.createRadialGradient(w / 2, view / 2, Math.min(w, view) * 0.3, w / 2, view / 2, Math.max(w, view) * 0.8);
+    const vig = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.8);
     vig.addColorStop(0, 'rgba(0,0,0,0)');
     vig.addColorStop(1, 'rgba(3,8,18,.4)');
     ctx.fillStyle = vig;

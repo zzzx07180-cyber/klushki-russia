@@ -10,7 +10,6 @@
   --accent-dark: #0d68d0;
   --accent-glow: rgba(30, 139, 255, .45);
   --ice: #7fd4ff;              /* светло-ледяной — для подсветок */
-  --tg-below: 200px;           /* Telegram: на сколько лёд и чёрные полосы заходят за края окна сайта */
 
   /* Шрифты (все — SIL Open Font License, бесплатно и для коммерции) */
   --f-display: "Roboto Condensed", "Arial Narrow", sans-serif;  /* крупные заголовки */
@@ -74,11 +73,7 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-/* overscroll-behavior-y: none — страница не «пружинит»: на iPhone её нельзя оттянуть за верх или низ,
-   шапка и подвал не отрываются от краёв экрана и в щели не виден лёд (владелец 2026-11-19).
-   WebKit берёт это только у html. Только по вертикали: по горизонтали выключился бы «назад»
-   свайпом по тачпаду. Цена — нет жеста «потянуть вниз, чтобы обновить». */
-html { scroll-behavior: smooth; overscroll-behavior-y: none; }
+html { scroll-behavior: smooth; }
 
 body {
   font-family: var(--f-text);
@@ -97,13 +92,6 @@ body {
   height: 100lvh;
   z-index: -1;
   display: block;
-}
-/* Встроенный браузер Telegram (класс ставит ice.js): лёд продолжается ВНИЗ за край окна сайта,
-   под нижнюю панель Telegram — сквозь неё виден лёд, а не ровная заливка (владелец 2026-11-19:
-   «подложка перестаёт быть прозрачной»). Страницу это не удлиняет: холст «приклеен» к экрану. */
-.in-telegram .ice-bg {
-  height: calc(100vh + var(--tg-below));
-  height: calc(100lvh + var(--tg-below));
 }
 
 a { color: inherit; text-decoration: none; }
@@ -508,34 +496,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   text-transform: uppercase;
   letter-spacing: 1.5px;
 }
-/* Чёрные полосы за краями окна сайта — только во встроенном браузере Telegram (их создаёт script.js).
-   Там, где сайта нет, под панелями Telegram был виден его белый фон:
-   • верхняя — над шапкой: наверху страницы верхняя панель Telegram тёмная, как при прокрутке;
-   • нижняя — под подвалом, включается только у конца страницы (класс is-on): в самом низу под
-     нижней панелью продолжается подвал, а в остальное время там виден лёд.
-   Обе чуть заходят на экран: телефон рисует «приклеенный» элемент за краем окна, только если тот
-   хоть немного виден на экране. Верхняя заходит под шапку (её не видно), у нижней эти 2px прозрачные.
-   Лежат под содержимым страницы (z-index: -1, как лёд), страницу не удлиняют. */
-.tg-edge {
-  position: fixed;
-  left: 0;
-  right: 0;
-  z-index: -1;
-  pointer-events: none;
-}
-.tg-edge--top {
-  bottom: calc(100% - 10px);
-  height: calc(var(--tg-below) + 10px);
-  background: var(--black);
-}
-.tg-edge--bottom {
-  top: calc(100% - 2px);
-  height: calc(var(--tg-below) + 2px);
-  background: linear-gradient(transparent 2px, var(--black) 2px);
-  opacity: 0;
-}
-.tg-edge--bottom.is-on { opacity: 1; }
-
 .footer__inner { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 
 /* ===== Плавающая кнопка связи ===== */

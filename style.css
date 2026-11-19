@@ -1516,7 +1516,21 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 .cart-pm__tg { flex: none; display: grid; color: var(--ice); }
 .cart-pm__why { margin-top: 10px; font-size: 13.5px; }
-.cart-pm__intro { margin: -2px 0 12px; line-height: 1.45; }
+/* «Почему заказ оформляем в переписке» — пункты с галочками над выбором Telegram / ВКонтакте */
+.cart-why { list-style: none; display: grid; gap: 7px; margin: 10px 0 16px; }
+.cart-why li { position: relative; padding-left: 26px; font-size: 14px; line-height: 1.4; }
+.cart-why li::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 4px;
+  width: 12px;
+  height: 6px;
+  border-left: 2px solid var(--ice);
+  border-bottom: 2px solid var(--ice);
+  transform: rotate(-45deg);
+}
+.cart-why__ask { margin-bottom: 10px; }
 .cart-vk {                                   /* «VK» — надпись вместо логотипа ВКонтакте */
   display: inline-block;
   font-family: var(--f-display);

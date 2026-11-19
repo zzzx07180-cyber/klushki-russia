@@ -7,14 +7,16 @@
 // Значок корзины стоит в шапке каждой страницы (кнопка #cartBtn), а выдвижное окно этот скрипт
 // создаёт сам — править его нужно только здесь. Оформление — в style.css, блок «КОРЗИНА».
 //
-// Экраны окна: «Корзина» (список) → «Оформление» (доставка, где оформить заказ, итог) →
-// «Готово» (текст заказа для Telegram / ВКонтакте).
-// Из «Оформления» можно открыть «Пункты на карте» — выбрать пункт выдачи / отделение почты.
-// Всё про службы доставки, города, пункты и цены — в delivery.js (он подключается перед этим файлом).
+// Экраны окна: «Корзина» (список) → «Оформление» (1 твой заказ, 2 оформить заказ — где: Telegram
+// или ВКонтакте) → «Готово» (текст заказа для Telegram / ВКонтакте).
 //
-// ⚠️ Сайт — ВИТРИНА (с 2026-11-19): оплаты на сайте нет. В шаге «Оплата» покупатель выбирает,
-// где оформить заказ — в Telegram или ВКонтакте, — корзина собирает текст заказа и открывает чат,
-// а как оплатить, договариваемся в переписке. Адреса Telegram и ВКонтакте — в начале shop.js.
+// ⚠️ Сайт — ВИТРИНА (с 2026-11-19): ни доставки, ни оплаты на сайте не выбирают. В шаге «Оформить
+// заказ» покупатель выбирает Telegram или ВКонтакте (над выбором — почему так: WHY_CHAT), корзина
+// собирает текст заказа и открывает чат, а доставку и оплату согласуем в переписке.
+// Адреса Telegram и ВКонтакте — в начале shop.js.
+// Шаг «Доставка» (служба, город, пункт на карте, цена — всё из delivery.js) сохранён, но выключен:
+// SHIP_STEP = false. Поставить true — он вернётся первым шагом оформления, а из него снова можно будет
+// открыть «Пункты на карте».
 // Окно оплаты картой / СБП (экран «Оплата», payView) сохранено, но выключено: ONLINE_PAY = false.
 // Поставить ONLINE_PAY = true — и вернутся способы «Картой онлайн» и «СБП», кнопка «Оплатить N ₽»
 // и окно оплаты. Деньги в нём по-прежнему не списываются (честно написано «скоро»); когда подключим
@@ -31,9 +33,12 @@ window.Cart = (function () {
   //  byIndex — Почта России по её настоящему калькулятору: покупатель вводит индекс, сайт показывает цену и срок;
   //  byMap   — СДЭК в режимах demo / live: город из подсказок, пункты на карте, цена;
   //  ни то, ни другое — служба выбрана, а пункт и цену уточняем в чате (режим off).
+  // Шаг «Доставка» в оформлении: false — витрина (так сейчас), доставку согласуем в чате, на сайте её
+  // не выбирают и не считают; true — вернуть выбор службы, города, пункта и расчёт цены.
+  const SHIP_STEP = false;
   const smart = D.MODE !== 'off';
-  const byIndex = () => state.delivery === 'post' && D.postCalc;
-  const byMap = () => smart && !byIndex();
+  const byIndex = () => SHIP_STEP && state.delivery === 'post' && D.postCalc;
+  const byMap = () => SHIP_STEP && smart && !byIndex();
   const indexOk = () => /^\d{6}$/.test(state.index);
   // Оплата на сайте: false — витрина, заказ оформляем в Telegram / ВКонтакте (так сейчас);
   // true — вернуть окно оплаты картой / СБП (подробно — в начале файла).
@@ -141,7 +146,7 @@ window.Cart = (function () {
   // пока ждём, пишем «Считаем доставку…». key — для каких условий посчитано.
   let quoteNow = { key: '', status: 'idle' };
   function quoteKey() {
-    if (!state.delivery) return '';
+    if (!SHIP_STEP || !state.delivery) return '';
     const base = [state.delivery, state.method, state.items.join(',')];
     if (byIndex()) return indexOk() ? base.concat('#' + state.index).join('|') : '';
     return byMap() && state.cityId ? base.concat(state.cityId).join('|') : '';
@@ -177,6 +182,7 @@ window.Cart = (function () {
 
   // Доставка одной строкой: «СДЭК, пункт выдачи, Пункт СДЭК №3 — Казань, ул. Мира, 24»
   function shipText() {
+    if (!SHIP_STEP) return '';                       // доставку на сайте не выбирают — договоримся в чате
     const s = D.service(state.delivery);
     if (!s) return state.city ? 'город ' + state.city : '';
     const parts = [s.label, D.method(state.delivery, state.method).text];
@@ -384,7 +390,7 @@ window.Cart = (function () {
     }
     if (shipKnown && byIndex()) return 'Доставка — по тарифу Почты России' + (D.postExample ? ' (для примера — отправка из Москвы).' : '.');
     if (shipKnown) return D.MODE === 'demo' ? 'Цена доставки — пример: включён демо-режим.' : '';
-    return 'Доставка считается отдельно — зависит от города.';
+    return SHIP_STEP ? 'Доставка считается отдельно — зависит от города.' : 'Доставку посчитаем в чате — зависит от города.';
   }
 
   // Полоска-сообщение над списком: «Убрали … — Вернуть» или «Товар уже продан»
@@ -429,11 +435,11 @@ window.Cart = (function () {
   // ----- Экран «Оформление», шаг 1: доставка -----
   const demoBadge = '<span class="cart-demo">Демо</span>';
 
-  function shipHTML() {
+  function shipHTML(no) {
     const svc = D.service(state.delivery);
     const m = svc && D.method(state.delivery, state.method);
     return `
-      <p class="cart-step__label"><i>1</i> Доставка ${D.MODE === 'demo' ? demoBadge : ''}</p>
+      <p class="cart-step__label"><i>${no}</i> Доставка ${D.MODE === 'demo' ? demoBadge : ''}</p>
       ${D.MODE === 'demo' ? `<p class="cart-demo__note">Так доставка будет работать после договора со СДЭК: пункты на карте,
         цены и сроки СДЭК сейчас — примеры. Почта России считается по настоящим тарифам${D.postExample ? ' (для примера — отправка из Москвы)' : ''}.</p>` : ''}
       <div class="cart-ship">
@@ -551,19 +557,62 @@ window.Cart = (function () {
   }
 
   // ----- Экран «Оформление» -----
+  // Почему заказ оформляем в переписке, а не на сайте, — объясняем покупателю прямо над выбором чата.
+  // ship: true — пункт про доставку (нужен, только пока на сайте выключен шаг «Доставка»)
+  const WHY_CHAT = [
+    { text: 'Проверим товар перед отправкой и пришлём живые фото — увидишь, что именно покупаешь' },
+    { text: 'Подберём доставку — СДЭК или Почта России, до пункта выдачи или до двери — и посчитаем её цену', ship: true },
+    { text: 'Платишь, только когда всё согласовали' }
+  ];
+
+  // Подпись под кнопкой «Отправить заказ»: что будет дальше
+  function sendNote(pm) {
+    return pm.chat === 'tg' && S.telegramLink(message()) !== S.TELEGRAM
+      ? 'Текст заказа сам появится в чате — останется нажать «Отправить».'
+      : 'Скопируем текст заказа — останется вставить его в чат и отправить.';
+  }
+
   function checkoutView(list, t) {
     const online = canPayOnline(t);
     const pm = payMethod(t);
     const toPay = t.sum + (shipCost() || 0);
+    // Порядок шагов. С оплатой на сайте: [доставка] → оплата → состав заказа (итог прямо над «Оплатить»).
+    // Витрина: [доставка] → состав заказа → оформить заказ (выбор чата прямо над кнопкой «Отправить заказ»).
+    const steps = (SHIP_STEP ? ['ship'] : []).concat(ONLINE_PAY ? ['pay', 'sum'] : ['sum', 'pay']);
+    const html = {
+      ship: (no) => `<section class="cart-step" data-step="ship">${shipHTML(no)}</section>`,
+      pay: (no) => payStepHTML(no, t, online, pm),
+      sum: (no) => `
+        <section class="cart-step">
+          <p class="cart-step__label"><i>${no}</i> Твой заказ <small class="cart-step__no">№ ${orderNo}</small></p>
+          <ul class="cart-sum">
+            ${list.map((p) => `<li><span>${esc(fullName(p))}</span><b>${hasPrice(p.price) ? price(p.price) : 'по запросу'}</b></li>`).join('')}
+          </ul>
+          <div data-sum>${sumHTML(t)}</div>
+        </section>`
+    };
     return {
       title: 'Оформление',
-      body: `
-        <section class="cart-step" data-step="ship">${shipHTML()}</section>
+      body: steps.map((s, i) => html[s](i + 1)).join(''),
+      foot: pm.online
+        ? `<button type="button" class="btn cart__cta" data-cart-go="pay">${ICON_LOCK} Оплатить ${price(toPay)}</button>
+           ${sendLink('Есть вопрос? Написать в Telegram', 'cart__alt')}`
+        : `${sendLink((pm.chat === 'vk' ? ICON_VK : ICON_TG) + ' Отправить заказ ' + pm.where, 'btn cart__cta', pm.chat)}
+           <p class="cart__note cart__note--center">${sendNote(pm)}</p>`
+    };
+  }
 
+  // Шаг «Оформить заказ» (витрина: почему в чате + выбор Telegram / ВКонтакте)
+  // или «Оплата» (если включена оплата на сайте: картой / СБП / в чате)
+  function payStepHTML(no, t, online, pm) {
+    const why = ONLINE_PAY ? '' : `
+      <p class="cart-step__text">${SHIP_STEP ? 'Оплату' : 'Доставку и оплату'} согласуем в переписке — так надёжнее:</p>
+      <ul class="cart-why">${WHY_CHAT.filter((w) => !(w.ship && SHIP_STEP)).map((w) => `<li>${w.text}</li>`).join('')}</ul>
+      <p class="cart-step__text cart-why__ask">Где тебе удобнее?</p>`;
+    return `
         <section class="cart-step">
-          <p class="cart-step__label"><i>2</i> Оплата</p>
-          ${ONLINE_PAY ? '' : `<p class="cart-step__text cart-pm__intro">Оплата — после подтверждения в переписке. Отправь нам заказ:
-            проверим наличие, пришлём живые фото и расскажем, как оплатить. Где удобнее?</p>`}
+          <p class="cart-step__label"><i>${no}</i> ${ONLINE_PAY ? 'Оплата' : 'Оформить заказ'}</p>
+          ${why}
           <div class="cart-pm">
             ${PAYMENT.map((m) => {
               const off = m.off || (m.online && !online);
@@ -579,21 +628,7 @@ window.Cart = (function () {
           </div>
           ${!ONLINE_PAY || online ? '' : `<p class="cart-step__text cart-pm__why">У ${t.count === 1 ? 'товара' : 'части товаров'} цена по запросу —
             сначала уточним её в Telegram, потом расскажем, как оплатить.</p>`}
-        </section>
-
-        <section class="cart-step">
-          <p class="cart-step__label"><i>3</i> Твой заказ <small class="cart-step__no">№ ${orderNo}</small></p>
-          <ul class="cart-sum">
-            ${list.map((p) => `<li><span>${esc(fullName(p))}</span><b>${hasPrice(p.price) ? price(p.price) : 'по запросу'}</b></li>`).join('')}
-          </ul>
-          <div data-sum>${sumHTML(t)}</div>
-        </section>`,
-      foot: pm.online
-        ? `<button type="button" class="btn cart__cta" data-cart-go="pay">${ICON_LOCK} Оплатить ${price(toPay)}</button>
-           ${sendLink('Есть вопрос? Написать в Telegram', 'cart__alt')}`
-        : `${sendLink((pm.chat === 'vk' ? ICON_VK : ICON_TG) + ' Отправить заказ ' + pm.where, 'btn cart__cta', pm.chat)}
-           <p class="cart__note cart__note--center">Заказ соберётся в одно сообщение — ответим, пришлём живые фото и расскажем, как оплатить.</p>`
-    };
+        </section>`;
   }
 
   // ----- Экран «Пункты на карте» -----
@@ -750,8 +785,8 @@ window.Cart = (function () {
       ? 'Текст заказа уже в поле сообщения Telegram — осталось нажать «Отправить». Если поле пустое — вставь текст' +
         (copied ? ': мы его скопировали.' : ' ниже.')
       : copied
-        ? `Мы скопировали текст заказа. Вставь его в чат ${app} и отправь — ответим и подтвердим доставку.`
-        : `Скопируй текст заказа, вставь его в чат ${app} и отправь — ответим и подтвердим доставку.`;
+        ? `Мы скопировали текст заказа. Вставь его в чат ${app} и отправь — ответим и обо всём договоримся.`
+        : `Скопируй текст заказа, вставь его в чат ${app} и отправь — ответим и обо всём договоримся.`;
     return {
       title: 'Готово',
       body: `
@@ -1051,6 +1086,7 @@ window.Cart = (function () {
 
   // «Оплатить», а доставка заполнена не до конца — показываем, чего не хватает
   function missing() {
+    if (!SHIP_STEP) return null;                     // шага «Доставка» нет — и требовать нечего
     if (!state.delivery) return ['Выбери службу доставки — СДЭК или Почта России', ''];
     if (byIndex()) {
       if (!indexOk()) return ['Укажи почтовый индекс — 6 цифр', '#cartIndex'];

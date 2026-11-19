@@ -197,7 +197,7 @@ window.Picker = (function () {
   }
 
   // ----- Значки -----
-  const ICON_STICK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 2.5 10.4 17c-.6 1.1-1.8 1.8-3 1.8H3v2.7h5.2c1.9 0 3.7-1 4.6-2.7L21.4 4"/><ellipse cx="18.2" cy="20" rx="3" ry="1.5" fill="currentColor" stroke="none"/></svg>';
+  const ICON_PUCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.5 10c0-1.95 3-3.5 6.75-3.5S22 8.05 22 10v3.9c0 1.95-3 3.5-6.75 3.5S8.5 15.85 8.5 13.9z"/><path fill="none" style="stroke:var(--accent)" stroke-width="1.3" d="M8.7 10.45c.65 1.6 3.4 2.85 6.55 2.85s5.9-1.25 6.55-2.85"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M3.2 8.8h3.2M1.6 12.1h4.8M3.2 15.4h3.2"/></svg>';   // шайба в полёте — как на кнопке «Подобрать клюшку»
   const ICON_AGAIN = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>';
   const ICON_TG = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M21.5 3.6 2.9 10.8c-1.3.5-1.3 1.2-.2 1.6l4.8 1.5 1.8 5.6c.2.6.4.8.8.8.4 0 .6-.2.9-.5l2.3-2.2 4.8 3.5c.9.5 1.5.2 1.7-.8l3.1-14.8c.3-1.3-.5-1.9-1.4-1.5ZM8.7 13.6l9.4-5.9c.5-.3.9-.1.5.2l-7.9 7.2-.3 3.3-1.7-4.8Z"/></svg>';
 
@@ -211,7 +211,7 @@ window.Picker = (function () {
     <div class="picker__shade" data-picker-close></div>
     <div class="picker__panel" role="dialog" aria-modal="true" aria-labelledby="pickerTitle" tabindex="-1">
       <div class="picker__head">
-        <span class="picker__ava" aria-hidden="true">${ICON_STICK}</span>
+        <span class="picker__ava" aria-hidden="true">${ICON_PUCK}</span>
         <div class="picker__who">
           <h2 class="picker__title" id="pickerTitle">Подбор клюшки</h2>
           <small>Помощник КЛЮШКИ RUSSIA</small>

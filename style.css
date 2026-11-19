@@ -73,15 +73,13 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-/* overscroll-behavior-y: none — страница не «пружинит», шапка и подвал не отрываются от краёв экрана.
-   Только по вертикали: по горизонтали выключился бы «назад» свайпом по тачпаду. */
-html { scroll-behavior: smooth; overscroll-behavior-y: none; }
+html { scroll-behavior: smooth; }
 
 body {
   font-family: var(--f-text);
   color: var(--white);
   line-height: 1.55;
-  background: #1a2f4b;         /* пока рисуется лёд; этим же цветом Safari тонирует полосу под своей панелью */
+  background: #1a2f4b;         /* пока рисуется лёд */
   overflow-x: hidden;
 }
 
@@ -497,7 +495,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  box-shadow: 0 10px 0 var(--black);   /* закрывает щель в полточки под подвалом (высота страницы дробная) */
 }
 .footer__inner { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 
